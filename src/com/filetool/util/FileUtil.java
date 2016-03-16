@@ -11,9 +11,9 @@ import java.io.IOException;
 public final class FileUtil
 {
     /** 
-     * è¯»å–æ–‡ä»¶å¹¶æŒ‰è¡Œè¾“å‡º
+     * ¶ÁÈ¡ÎÄ¼ş²¢°´ĞĞÊä³ö
      * @param filePath
-     * @param spec å…è®¸è§£æçš„æœ€å¤§è¡Œæ•°ï¼Œ spec==nullæ—¶ï¼Œè§£ææ‰€æœ‰è¡Œ
+     * @param spec ÔÊĞí½âÎöµÄ×î´óĞĞÊı£¬ spec==nullÊ±£¬½âÎöËùÓĞĞĞ
      * @return
      * @author
      * @since 2016-3-1
@@ -21,7 +21,7 @@ public final class FileUtil
     public static String read(final String filePath, final Integer spec)
     {
         File file = new File(filePath);
-        // å½“æ–‡ä»¶ä¸å­˜åœ¨æˆ–è€…ä¸å¯è¯»æ—¶
+        // µ±ÎÄ¼ş²»´æÔÚ»òÕß²»¿É¶ÁÊ±
         if ((!isFileExists(file)) || (!file.canRead()))
         {
             System.out.println("file [" + filePath + "] is not exist or cannot read!!!");
@@ -58,10 +58,10 @@ public final class FileUtil
         return sb.toString();
     }
     /** 
-     * å†™æ–‡ä»¶
-     * @param filePath è¾“å‡ºæ–‡ä»¶è·¯å¾„
-     * @param content è¦å†™å…¥çš„å†…å®¹
-     * @param append æ˜¯å¦è¿½åŠ 
+     * Ğ´ÎÄ¼ş
+     * @param filePath Êä³öÎÄ¼şÂ·¾¶
+     * @param content ÒªĞ´ÈëµÄÄÚÈİ
+     * @param append ÊÇ·ñ×·¼Ó
      * @return
      * @author s00274007
      * @since 2016-3-1
@@ -75,7 +75,7 @@ public final class FileUtil
             return 0;
         }
 
-        // å½“æ–‡ä»¶å­˜åœ¨ä½†ä¸å¯å†™æ—¶
+        // µ±ÎÄ¼ş´æÔÚµ«²»¿ÉĞ´Ê±
         if (isFileExists(file) && (!file.canRead()))
         {
             return 0;
