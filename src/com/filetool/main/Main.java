@@ -5,7 +5,7 @@ import com.filetool.util.LogUtil;
 import com.routesearch.route.Route;
 
 /**
- * 宸ュ叿鍏ュ彛
+ * 工具入口
  * 
  * @author
  * @since 2016-3-1
@@ -27,14 +27,14 @@ public class Main
 
         LogUtil.printLog("Begin");
 
-        // 璇诲彇杈撳叆鏂囦欢
+        // 读取输入文件
         String graphContent = FileUtil.read(graphFilePath, null);
         String conditionContent = FileUtil.read(conditionFilePath, null);
 
-        // 鍔熻兘瀹炵幇鍏ュ彛
+        // 功能实现入口
         String resultStr = Route.searchRoute(graphContent, conditionContent);
 
-        // 鍐欏叆杈撳嚭鏂囦欢
+        // 写入输出文件
         FileUtil.write(resultFilePath, resultStr, false);
 
         LogUtil.printLog("End");
