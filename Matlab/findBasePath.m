@@ -21,7 +21,7 @@ function [path] = findBasePath(src, dest, is)
     
     topo = [[1, 0, 0, 0, OUT_CEF, 0, 0, 0, OUT_CEF, 0, 0, 0, 0, OUT_CEF, 0, 0, 0, 0, 0, OUT_CEF];
             [OUT_CEF, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            [0, 0, 1, OUT_CEF, 0, 0, 0, 0, 0, OUT_CEF, 0, 0, 0, 0, OUT_CEF, 0, 0, 0, 0, 0];
+            [0, 0, 1, OUT_CEF, 0, 0, 0, 0, 0, OUT_CEF, 0, 0, 0, 0, 0, OUT_CEF, 0, 0, 0, 0];
             [OUT_CEF, 0, 0, 1, 0, OUT_CEF, 0, 0, 0, 0, 0, OUT_CEF, 0, 0, 0, 0, 0, 0, 0, 0];
             [0, OUT_CEF, 0, 0, 1, OUT_CEF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
             [0, 0, 0, 0, 0, 1, 0, OUT_CEF, 0, OUT_CEF, 0, 0, 0, 0, 0, 0, 0, 0, 0, OUT_CEF];
