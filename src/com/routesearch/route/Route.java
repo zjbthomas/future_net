@@ -18,12 +18,96 @@ public final class Route
      */
     public static String searchRoute(String graphContent, String condition)
     {
-        //initial the adjacent matrix
+        //testing code
+    	/*for(short i=0;i<nodeCount;i++)
+		System.out.printf("%d ",oldDisVec[i]);*/
+    	//initial the adjacent matrix
     	short nodeCount = 20;
     	short[][] adjMat;
     	adjMat = new short[nodeCount][nodeCount];
     	adjMatIni(adjMat);
     	
+    	//initial the distance vector
+    	short souInd = 2;
+    	short[] exiInd = new short[nodeCount];
+    	for(short i=0;i<nodeCount;i++)
+    		exiInd[i]=-1;
+    	short exiIndCou=0;
+    	exiInd[exiIndCou] = souInd;
+    	short oldDisVec[] = new short[nodeCount];
+    	for(short i=0;i<nodeCount;i++)
+    		oldDisVec[i]=adjMat[souInd][i];
+    	short finDisVec[] = new short[nodeCount];
+    	for(short i=0;i<nodeCount;i++)
+    		finDisVec[i]=oldDisVec[i];
+    	finDisVec[souInd]=0;
+    	
+    	//initial the incidence matrix
+    	short[] pathSou = new short[nodeCount];
+    	short[] pathDes = new short[nodeCount];
+    	short pathCount = 0;
+    	
+    	//generate the shortest path tree
+    	for(short count=0;count<(nodeCount-1);count++)
+    	{
+    		//find the minimum value
+    		short minIndex=0;
+    		short minValue=13000;
+    		for(short i=0;i<nodeCount;i++)
+    		{
+    			if(oldDisVec[i]<minValue)
+    			{
+    				minValue=oldDisVec[i];
+    				minIndex=i;
+    			}
+    		}
+    		//add the destination node to existing index
+    		exiIndCou++;
+    		exiInd[exiIndCou]=minIndex;
+    		
+    		//path decision
+    			//path destination
+    		short desInd=minIndex;
+    			//path source
+    		for(short i=0;i<exiInd.length;i++)
+    		{
+    			for(short j=0;j<nodeCount;j++)
+    			{
+    				if(adjMat[j][minIndex]!=13000)
+    				{
+    					if(exiInd[i]==j)
+    					{
+    						if(finDisVec[minIndex]==finDisVec[exiInd[i]]+adjMat[exiInd[i]][desInd])
+    						{
+    							souInd=exiInd[i];
+    						}
+    					}
+    				}
+    			}
+    		}
+    		pathSou[pathCount]=souInd;
+    		pathDes[pathCount]=desInd;
+    		pathCount++;
+    		
+    		//update distance vector
+    		for(short i=0;i<nodeCount;i++)
+    			oldDisVec[i]=(short) Math.min(oldDisVec[i], oldDisVec[minIndex]+adjMat[minIndex][i]);
+    			//existing index unreachable
+    		for(short i=0;i<exiInd.length;i++)
+    		{
+    			if(exiInd[i]!=-1)
+    				oldDisVec[exiInd[i]]=13000;
+    		}
+    		//update final distance vector
+    		for(short i=0;i<nodeCount;i++)
+    		{
+    			finDisVec[i]=(short) Math.min(finDisVec[i], oldDisVec[i]);
+    		}
+    		
+    	}
+    	for(short i=0;i<nodeCount-1;i++)
+    		System.out.printf("%d %d ",pathSou[i],pathDes[i]);
+    		
     	return "hello world!";
     }
     
@@ -31,8 +115,8 @@ public final class Route
     private static void adjMatIni(short[][] adjMat)
     {
     	short unrDis = 13000;
-    	for(int i=0;i<adjMat.length;i++)
-    		for(int j=0;j<adjMat.length;j++)
+    	for(short i=0;i<adjMat.length;i++)
+    		for(short j=0;j<adjMat.length;j++)
     			adjMat[i][j]=unrDis;
 
     	adjMat[0][13]=15;adjMat[0][8]=17;adjMat[0][19]=1;adjMat[0][4]=8;
