@@ -27,7 +27,7 @@ public class Main
 
         LogUtil.printLog("Begin");
 
-        // 读取输入文件
+        // ɶɶɶ?
         String graphContent = FileUtil.read(graphFilePath, null);
         String conditionContent = FileUtil.read(conditionFilePath, null);
 
