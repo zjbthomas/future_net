@@ -29,10 +29,20 @@ public final class Route
     	
     	//initial the incidence matrix
     	short[] pathSou = new short[nodeCount];
+    	for(short i=0;i<nodeCount;i++)
+    		pathSou[i]=-1;
     	short[] pathDes = new short[nodeCount];
+    	for(short i=0;i<nodeCount;i++)
+    		pathDes[i]=-1;
     	short pathCount = 0;
     	
-    	shortestPathTree(pathSou,pathDes,pathCount,adjMat,nodeCount);
+    	//specify the source
+    	short souInd = 3;
+    	
+    	shortestPathTree(pathSou,pathDes,pathCount,adjMat,nodeCount,souInd);
+    	for(short i=0;i<nodeCount-1;i++)
+    		System.out.printf("%d %d ",pathSou[i],pathDes[i]);
+    	System.out.print('\n');
     	return "hello world!";
     }
     
@@ -67,11 +77,10 @@ public final class Route
     	adjMat[19][18]=12;
     	    	
     }
-    private static void shortestPathTree(short[] pathSou,short[] pathDes,short pathCount,short[][] adjMat,short nodeCount)
+    private static void shortestPathTree(short[] pathSou,short[] pathDes,short pathCount,short[][] adjMat,short nodeCount,short souInd)
     {
     	
     	//initial the distance vector
-    	short souInd = 2;
     	short[] exiInd = new short[nodeCount];
     	for(short i=0;i<nodeCount;i++)
     		exiInd[i]=-1;
@@ -86,7 +95,7 @@ public final class Route
     	finDisVec[souInd]=0;
     	
     	//generate the shortest path tree
-    	for(short count=0;count<(nodeCount-1);count++)
+    	while(ifNoNodeRemain(oldDisVec))
     	{
     		//find the minimum value
     		short minIndex=0;
@@ -136,6 +145,9 @@ public final class Route
     			if(exiInd[i]!=-1)
     				oldDisVec[exiInd[i]]=13000;
     		}
+    		for(short i=0;i<nodeCount;i++)
+    			System.out.printf("%d ",oldDisVec[i]);
+    		System.out.print('\n');
     		//update final distance vector
     		for(short i=0;i<nodeCount;i++)
     		{
@@ -143,8 +155,21 @@ public final class Route
     		}
     		
     	}
-    	for(short i=0;i<nodeCount-1;i++)
-    		System.out.printf("%d %d ",pathSou[i],pathDes[i]);
+    }
+    
+    //considering the possibility that not all node can be connected
+    private static boolean ifNoNodeRemain(short[] oldDisVec)
+    {
+    	boolean result = false;
+    	for(short i=0;i<oldDisVec.length;i++)
+    	{
+    		if(oldDisVec[i]!=13000)
+    		{
+    			result= true;
+    			break;
+    		}
+    	}
+    	return result;
     }
 
 }
