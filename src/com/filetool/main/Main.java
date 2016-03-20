@@ -35,8 +35,8 @@ public class Main
         String resultStr = Route.searchRoute(graphContent, conditionContent);
 
         // test example (3.17 5pm)
-        String graphContent1="0,0,1,1\n1,0,2,2\n2,0,2,1\n3,2,1,3\n4,0,2,3\n5,2,3,1\n6,3,2,1\n";
-        String res=Route.setrout(graphContent1);
+        //String graphContent1="0,0,1,1\n1,0,2,2\n2,0,2,1\n3,2,1,3\n4,0,2,3\n5,2,3,1\n6,3,2,1\n";
+        //String res=Route.setrout(graphContent1);
         
         // 写入输出文件
         FileUtil.write(resultFilePath, resultStr, false);
