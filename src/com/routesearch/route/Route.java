@@ -1,5 +1,5 @@
 /**
- * ÊµÏÖ´úÂëÎÄ¼þ
+ * Êµï¿½Ö´ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½
  * 
  * @author XXX
  * @since 2016-3-4
@@ -7,49 +7,103 @@
  */
 package com.routesearch.route;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+
 public final class Route
 {
-	/**
-     * ÄãÐèÒªÍê³É¹¦ÄÜµÄÈë¿Ú
+    /**
+     * ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½É¹ï¿½ï¿½Üµï¿½ï¿½ï¿½ï¿½
      * 
      * @author XXX
      * @since 2016-3-4
      * @version V1
      */
+	
+	// Define constant
+	private static final int PATHID = 0;
+	private static final int PATHSRC = 1;
+	private static final int PATHDEST = 2;
+	private static final int COST = 3;
+	
+	private static HashMap<PathKey, Integer[]> edges1 = new HashMap<PathKey, Integer[]>();
+	
+	// Daniel
     public static String searchRoute(String graphContent, String condition)
     {
-        //testing code
+    	//testing code (Daniel)
     	/*for(short i=0;i<nodeCount;i++)
 		System.out.printf("%d ",oldDisVec[i]);*/
+    	
+    	// find the total node number
+    	int nodeCount=0;
+    	for (String edge : graphContent.split("\n")) {
+    		String[] edgeSplit = edge.split(",");
+    		if (Integer.parseInt(edgeSplit[PATHSRC])>nodeCount)
+    			nodeCount=Integer.parseInt(edgeSplit[PATHSRC]);
+    		
+    		if (Integer.parseInt(edgeSplit[PATHDEST])>nodeCount)
+    			nodeCount=Integer.parseInt(edgeSplit[PATHDEST]);
+    	}
+    	nodeCount++;
+    	System.out.printf("No.of node is %d\n", nodeCount);
+    	
     	//initial the adjacent matrix
-    	short nodeCount = 20;
     	short[][] adjMat= new short[nodeCount][nodeCount];
         short[][] adjMatLID=new short[nodeCount][nodeCount];
-    	adjMatIni(adjMat,adjMatLID);
+    	//adjMatIni(adjMat,adjMatLID);
     	
-    	//initial the source, destination, including set
-    	short P_souInd=2;
-    	short P_desInd=19;
-    	short P_incSetCou=6;
-    	short[] P_incSet = new short[P_incSetCou];
-        P_incSet[0]=3;P_incSet[1]=5;P_incSet[2]=7;P_incSet[3]=11;P_incSet[4]=13;P_incSet[5]=17;
-    	short[] P_node = new short[P_incSetCou+2];
-    	P_node[0]=P_souInd;P_node[P_incSetCou+1]=P_desInd;
-    	for(short i=0;i<P_incSetCou;i++)
-    	{
-    		P_node[i+1]=P_incSet[i];
+    	// cxc 13:41 (substitute of adjMatIni())
+        //initiate adjMat
+    	for(short i=0;i<adjMat.length;i++)
+    		{ for(short j=0;j<adjMat.length;j++)
+    			adjMat[i][j]=13000;}
+    	
+    	//initial adjMatLID
+    	for(short i=0;i<adjMatLID.length;i++)
+    		{ for(short j=0;j<adjMatLID.length;j++)
+    			adjMatLID[i][j]=-1;}
+    	
+    	for (String edge : graphContent.split("\n")) {
+    		String[] edgeSplit = edge.split(",");
+    		if (Short.parseShort(edgeSplit[COST])<
+    				adjMat[Integer.parseInt(edgeSplit[PATHSRC])][Integer.parseInt(edgeSplit[PATHDEST])])
+    	  { adjMat[Integer.parseInt(edgeSplit[PATHSRC])][Integer.parseInt(edgeSplit[PATHDEST])]
+    				=Short.parseShort(edgeSplit[COST]);
+    		adjMatLID[Integer.parseInt(edgeSplit[PATHSRC])][Integer.parseInt(edgeSplit[PATHDEST])]
+    				=Short.parseShort(edgeSplit[PATHID]); }
     	}
+    	// end of this part
+    	
+    	//initial the source, destination, including set 
+    	
+    	String[] conditionSplit = condition.split(",|\n");
+    	short P_souInd=Short.parseShort(conditionSplit[0]);
+    	short P_desInd=Short.parseShort(conditionSplit[1]);
+    	int P_incSetCou=0;
+    	for (String node : conditionSplit[2].split("\\|")) {
+    		P_incSetCou++; // calculate number of includingSet Points
+    	}
+    	short[] P_node = new short[P_incSetCou+2];
+    	short[] P_incSet = new short[P_incSetCou];
+    	P_node[0]=P_souInd; P_node[P_incSetCou+1]=P_desInd;
+    	int indexNode=0;
+    	for (String node : conditionSplit[2].split("\\|")) {
+    		P_node[indexNode+1]=Short.parseShort(node);
+    		P_incSet[indexNode]=Short.parseShort(node);
+    		indexNode++;
+    	}  	    	
     	
         //declare the incidence matrix
     	short[] pathSou = new short[nodeCount];
     	short[] pathDes = new short[nodeCount];
-    	short pathCount;
+    	short pathCount; 
     	
         //declare the second stage adjacent matrix
     	short[][] S_adjMat = new short[P_incSetCou+2][P_incSetCou+2];
     	for(short i=0;i<S_adjMat.length;i++)
     		for(short j=0;j<S_adjMat.length;j++)
-    			S_adjMat[i][j]=13000;
+    			S_adjMat[i][j]=13000;   	
     	
     	//find STP of all including set
     	for(short count=0;count<P_incSetCou+2;count++)
@@ -81,7 +135,7 @@ public final class Route
     			}
     		}
     		System.out.printf("No.%d node\n", count+1);
-    		nodeOfPathDec(pathSou,pathDes,finDisVec,P_incSet,P_souInd,P_desInd);
+    		showPath(pathSou,pathDes,finDisVec,P_node);
     	}
     	System.out.print("Shortest Path Tree for the nodes\n");
     	
@@ -96,84 +150,35 @@ public final class Route
     		System.out.print('\n');
     	}
     	
+    	//show the index-node relationship
+    	short[] index=new short[P_node.length];
+    	System.out.print("Index: ");
+    	for(short i=0;i<P_node.length;i++)
+    	{
+    		index[i]=i;
+    		System.out.printf("%3d", index[i]);
+    	}
+    	System.out.print('\n');
+    	System.out.print("Node:  ");
+    	for(short i=0;i<P_node.length;i++)
+    	{
+    		index[i]=i;
+    		System.out.printf("%3d", P_node[i]);
+    	}
+    	System.out.print('\n');
+    	
+    	
+    	//find out the hamilton path of S_adjMat[i][j]
+    	short[] HamiltonPath = new short[P_incSetCou+2];
+    	for(short i=0;i<P_incSetCou+2;i++)
+    		HamiltonPath[i]=i;
+    	modPath(HamiltonPath,S_adjMat);
+    	
 
     	return "hello world!";
     }
     
-    //adjacent matrix initialization
-    private static void adjMatIni(short[][] adjMat,short[][] adjMatLID)
-    {
-    	//initial adjMat
-    	for(short i=0;i<adjMat.length;i++)
-    		for(short j=0;j<adjMat.length;j++)
-    			adjMat[i][j]=13000;
-    	//initial adjMatLID
-    	for(short i=0;i<adjMatLID.length;i++)
-    		for(short j=0;j<adjMatLID.length;j++)
-    			adjMatLID[i][j]=-1;
-
-    	adjMat[0][13]=15;adjMat[0][8]=17;adjMat[0][19]=1;adjMat[0][4]=8;
-    	adjMatLID[0][13]=0;adjMatLID[0][8]=1;adjMatLID[0][19]=2;adjMatLID[0][4]=3;
-    	
-    	adjMat[1][0]=4;
-    	adjMatLID[1][0]=4;
-    	
-    	adjMat[2][3]=20;adjMat[2][9]=19;adjMat[2][15]=8;
-    	adjMatLID[2][3]=36;adjMatLID[2][9]=5;adjMatLID[2][15]=6;
-    	
-    	adjMat[3][0]=14;adjMat[3][5]=20;adjMat[3][11]=12;
-    	adjMatLID[3][0]=7;adjMatLID[3][5]=37;adjMatLID[3][11]=8;
-    	
-    	adjMat[4][1]=15;adjMat[4][5]=17;
-    	adjMatLID[4][1]=9;adjMatLID[4][5]=10;
-    	
-    	adjMat[5][7]=20;adjMat[5][8]=18;adjMat[5][9]=14;adjMat[5][6]=2;adjMat[5][19]=20;
-    	adjMatLID[5][7]=38;adjMatLID[5][8]=11;adjMatLID[5][9]=12;adjMatLID[5][6]=13;adjMatLID[5][19]=44;
-    	
-    	adjMat[6][17]=4;
-    	adjMatLID[6][17]=14;
-    	
-    	adjMat[7][11]=20;adjMat[7][13]=1;adjMat[7][16]=19;
-    	adjMatLID[7][11]=39;adjMatLID[7][13]=15;adjMatLID[7][16]=16;
-    	
-    	adjMat[8][6]=1;adjMat[8][12]=17;
-    	adjMatLID[8][6]=17;adjMatLID[8][12]=18;
-    	
-    	adjMat[9][14]=11;
-    	adjMatLID[9][14]=19;
-    	
-    	adjMat[10][12]=1;
-    	adjMatLID[10][12]=20;
-    	
-    	adjMat[11][7]=12;adjMat[11][4]=7;adjMat[11][13]=20;adjMat[11][19]=20;
-    	adjMatLID[11][7]=21;adjMatLID[11][4]=22;adjMatLID[11][13]=40;adjMatLID[11][19]=20;
-    	
-    	adjMat[12][14]=5;
-    	adjMatLID[12][14]=23;
-    	
-    	adjMat[13][17]=12;adjMat[13][4]=2;
-    	adjMatLID[13][17]=24;adjMatLID[13][4]=25;
-    	
-    	adjMat[14][19]=9;
-    	adjMatLID[14][19]=26;
-    	
-    	adjMat[15][10]=14;adjMat[15][18]=2;
-    	adjMatLID[15][10]=27;adjMatLID[15][18]=28;
-    	
-    	adjMat[16][8]=14;
-    	adjMatLID[16][8]=29;
-    	
-    	adjMat[17][9]=14;adjMat[17][19]=3;adjMat[17][18]=10;adjMat[17][11]=20;adjMat[17][5]=20;
-    	adjMatLID[17][9]=30;adjMatLID[17][19]=31;adjMatLID[17][18]=32;adjMatLID[17][11]=41;adjMatLID[17][5]=43;
-    	
-    	adjMat[18][15]=8;adjMat[18][3]=8;
-    	adjMatLID[18][15]=33;adjMatLID[18][3]=34;
-    	
-    	adjMat[19][18]=12;
-    	adjMatLID[19][18]=35;
-    	    	
-    }
-    private static void shortestPathTree(short[] pathSou,short[] pathDes,short[] oldDisVec, short[] finDisVec, short pathCount,short[][] adjMat,short nodeCount,short souInd)
+    private static void shortestPathTree(short[] pathSou,short[] pathDes,short[] oldDisVec, short[] finDisVec, short pathCount,short[][] adjMat,int nodeCount,short souInd)
     {
     	//initial the distance vector
     	for(short i=0;i<nodeCount;i++)
@@ -266,7 +271,7 @@ public final class Route
     }
     
     //considering how the including set should be arranged
-    private static void nodeOfPathDec(short[] pathSou,short[] pathDes,short[] finDisVec,short[] P_incSet,short P_souInd, short P_desInd)
+    private static void showPath(short[] pathSou,short[] pathDes,short[] finDisVec,short[] allNodeSet)
     {
 		System.out.print("Sou:");
     	for(short i=0;i<pathSou.length;i++)
@@ -281,13 +286,6 @@ public final class Route
 			System.out.printf("%5d ", finDisVec[i]);
 		System.out.print("\n\n");
 		
-		//all including set receivable
-		short[] allNodeSet = new short[P_incSet.length+2];
-		allNodeSet[0]=P_souInd;allNodeSet[1]=P_desInd;
-		for(short i=0;i<P_incSet.length;i++)
-		{
-			allNodeSet[i+2]=P_incSet[i];
-		}
 		short trueCount=0;
 		for(short i=0;i<allNodeSet.length;i++)
 		{
@@ -308,5 +306,126 @@ public final class Route
 			System.out.print("can't reach all\n");
 		}
     }
-
+    
+    // cxc
+    public static String setrout(String graphContent) {
+    	for (String edge : graphContent.split("\n")) {
+    		String[] edgeSplit = edge.split(",");
+    		PathKey key1=new PathKey(Integer.parseInt(edgeSplit[PATHSRC]), Integer.parseInt(edgeSplit[PATHDEST]));
+    		// Key of PathKey type
+    		if (edges1.containsKey(key1)) {
+    			if (edges1.get(key1)[1] <= Integer.parseInt(edgeSplit[COST])) {
+    				continue; // skip if the old path has smaller cost
+    			}
+    		}
+    		edges1.put(key1, 
+    				   new Integer[]{Integer.parseInt(edgeSplit[PATHID]),Integer.parseInt(edgeSplit[COST])});
+    		// put new path or update old path (with same src & des)
+    	}
+    	return "hello";
+    }
+    
+    public static int searchPathID(Integer src, Integer dest) {
+    	PathKey key1=new PathKey(src,dest);
+    	if (edges1.containsKey(key1)) {
+    		return edges1.get(key1)[0]; // return PathID
+    	}
+    	return 10000; // exception
+    }
+    
+    /*
+    public ArrayList<Integer> searchBasePath(ArrayList<Integer[]> edges, ArrayList<Integer> includingSet, Integer src, Integer dest) {
+    	ArrayList<Integer> ret = new ArrayList<Integer>(); // Record and return paths
+    	ret.add(0); // The first one store the cost
+    	
+    	for (Integer[] edge : edges) {
+    		if (edge[PATHSRC].equals(src)) {
+    			if (!nodeSet.contains(edge[PATHDEST])) {
+    				if (includingSet.contains(edge[PATHDEST])) {
+    					ret.set(0, ret.get(0) + edge[COST]);
+    					ret.add(edge[PATHID]);
+    				}
+    			}
+    		}
+    	}
+    	
+    	return ret;
+    }
+    */
+    
+    //find out the hamilton path of the question
+    private static void modPath(short[] HamiltonPath, short[][] S_adjMat )
+    {
+    	getHamiPathSou(HamiltonPath);
+    	boolean flag=true;
+    	while(flag)
+    	{
+    		flag=false;
+    		for(short n=0;n<HamiltonPath.length-3;n++)
+    		{
+    			for(short m=(short) (n+2);m<HamiltonPath.length-2;m++)
+    			{
+    				if(S_adjMat[HamiltonPath[n]][HamiltonPath[m]]+S_adjMat[HamiltonPath[n+1]][HamiltonPath[m+1]]
+    						<S_adjMat[HamiltonPath[n]][HamiltonPath[n+1]]+S_adjMat[HamiltonPath[m]][HamiltonPath[m+1]])
+    				{
+    					flag=true;
+    					//not convert all
+    					short sample;
+    					sample = HamiltonPath[n+1];
+    					HamiltonPath[n+1]=HamiltonPath[m];
+    					HamiltonPath[m]=sample;
+    					//convert all
+    					/*short[] sample = new short[HamiltonPath.length];
+    					for(short i=0;i<HamiltonPath.length;i++)
+    						sample[i]=HamiltonPath[i];
+    					for(short i=(short) (n+1);i<m+1;i++)
+    					{
+    						HamiltonPath[i]=sample[m-i+n+1];
+    					}*/   					
+    				}
+    			}
+    		}	
+    	}
+    	//visualize the final hamilton path
+    	System.out.print("Hamilt:");
+    	for(short i=0;i<HamiltonPath.length;i++)
+    		System.out.printf("%3d", HamiltonPath[i]);
+    	System.out.print('\n');
+    	
+    }
+    
+    //initial the souPath if it is necessary
+    private static void getHamiPathSou(short[] HamitonPath)
+    {
+    	
+    }
 }
+
+class PathKey { // overwrite the Key element (cxc)
+    public final int pathsrc;
+    public final int pathdes;
+
+    public PathKey(int src, int des) {
+        pathsrc = src;
+        pathdes = des;
+    }
+
+    @Override
+    public boolean equals(Object object) {
+        if (! (object instanceof PathKey)) {
+            return false;
+        }
+
+        PathKey otherKey = (PathKey) object;
+        return (this.pathsrc == otherKey.pathsrc) && (this.pathdes == otherKey.pathdes);
+    }
+
+    @Override
+    public int hashCode() {
+    	int result = 0; // any prime number
+    	result = result + pathsrc;
+    	result =  600 * result + pathdes;
+    	return result;
+    }
+}
+
