@@ -94,10 +94,12 @@ public final class Route
     		indexNode++;
     	}  	    	
     	
-        //declare the incidence matrix
+        //declare the path matrix
     	short[] pathSou = new short[nodeCount];
     	short[] pathDes = new short[nodeCount];
     	short pathCount; 
+    	short[][] path = new short[2*(P_incSetCou+2)][nodeCount];
+    	
     	
         //declare the second stage adjacent matrix
     	short[][] S_adjMat = new short[P_incSetCou+2][P_incSetCou+2];
@@ -136,6 +138,20 @@ public final class Route
     		}
     		System.out.printf("No.%d node\n", count+1);
     		showPath(pathSou,pathDes,finDisVec,P_node);
+    		for(short i=0;i<nodeCount;i++)
+    		{
+    			path[2*count][i]=pathSou[i];
+    			path[2*count+1][i]=pathDes[i];
+    		}
+    	}
+    	//visualize the path
+    	for(short i=0;i<2*(P_incSetCou+2);i++)
+    	{
+    		for(short j=0;j<nodeCount;j++)
+    		{
+    			System.out.printf("%4d", path[i][j]);
+    		}
+    		System.out.print('\n');
     	}
     	System.out.print("Shortest Path Tree for the nodes\n");
     	
@@ -172,10 +188,35 @@ public final class Route
     	short[] HamiltonPath = new short[P_incSetCou+2];
     	for(short i=0;i<P_incSetCou+2;i++)
     		HamiltonPath[i]=i;
-    	modPath(HamiltonPath,S_adjMat);
     	
-
-    	return "hello world!";
+    	/*int cost;
+    	cost=modPath(HamiltonPath,S_adjMat);
+    	System.out.printf("%d \n",cost);
+    	
+    	short[] HamiltonPath1 = new short[P_incSetCou+2];
+    	HamiltonPath1[0]=0;HamiltonPath1[P_incSetCou+1]=(short) (P_incSetCou+1);
+    	for(short i=1;i<P_incSetCou+1;i++)
+    		HamiltonPath1[i]=(short) (P_incSetCou+1-i);
+    	int cost1;
+    	cost1=modPath(HamiltonPath1,S_adjMat);
+    	System.out.printf("%d \n",cost1);*/
+    	
+    	//short[] HamiltonPath1 = new short[P_incSetCou+2];
+    	
+    	if(S_adjMat[HamiltonPath[HamiltonPath.length-2]][HamiltonPath[HamiltonPath.length-1]]!=13000)
+    	{
+    		System.out.print(pathDet(path,HamiltonPath,P_node));
+    		System.out.print('\n');
+    	}
+    	else
+    	{
+    		System.out.print("No such path");
+    		System.out.print('\n');
+    	}
+    	StringBuilder a = new StringBuilder();
+    	
+    	
+    	return a.toString();
     }
     
     private static void shortestPathTree(short[] pathSou,short[] pathDes,short[] oldDisVec, short[] finDisVec, short pathCount,short[][] adjMat,int nodeCount,short souInd)
@@ -354,10 +395,11 @@ public final class Route
     */
     
     //find out the hamilton path of the question
-    private static void modPath(short[] HamiltonPath, short[][] S_adjMat )
+    private static int modPath(short[] HamiltonPath, short[][] S_adjMat )
     {
     	getHamiPathSou(HamiltonPath);
     	boolean flag=true;
+    	int cost=0;
     	while(flag)
     	{
     		flag=false;
@@ -370,27 +412,31 @@ public final class Route
     				{
     					flag=true;
     					//not convert all
-    					short sample;
+    					/*short sample;
     					sample = HamiltonPath[n+1];
     					HamiltonPath[n+1]=HamiltonPath[m];
-    					HamiltonPath[m]=sample;
+    					HamiltonPath[m]=sample;*/
     					//convert all
-    					/*short[] sample = new short[HamiltonPath.length];
+    					short[] sample = new short[HamiltonPath.length];
     					for(short i=0;i<HamiltonPath.length;i++)
     						sample[i]=HamiltonPath[i];
     					for(short i=(short) (n+1);i<m+1;i++)
     					{
     						HamiltonPath[i]=sample[m-i+n+1];
-    					}*/   					
+    					}   					
     				}
     			}
     		}	
     	}
+    	for(short i=0;i<HamiltonPath.length-1;i++)
+    		cost+=S_adjMat[HamiltonPath[i]][HamiltonPath[i+1]];
+    	//System.out.printf("Cost: %6d\n", cost);
     	//visualize the final hamilton path
     	System.out.print("Hamilt:");
     	for(short i=0;i<HamiltonPath.length;i++)
     		System.out.printf("%3d", HamiltonPath[i]);
     	System.out.print('\n');
+    	return cost;
     	
     }
     
@@ -398,6 +444,45 @@ public final class Route
     private static void getHamiPathSou(short[] HamitonPath)
     {
     	
+    }
+    
+    private static String pathDet(short[][] path,short[] HamiltonPath, short[] P_node)
+    {
+    	String output="";
+    	for (short hamt=0;hamt<HamiltonPath.length-1;hamt++) {
+    		short sorIndex=HamiltonPath[hamt];
+    		short desIndex=HamiltonPath[hamt+1];
+    		boolean flag=true;
+    		short desValue = P_node[desIndex];
+    		String suboutput="";
+    		while(flag)
+    		{	
+    			for(short i=0;i<path[0].length;i++)
+    			{
+    				if(path[2*sorIndex+1][i]==desValue)
+    				{
+    					System.out.printf("Sou: %3d\n",path[2*sorIndex][i]);
+    					System.out.printf("Des: %3d\n",desValue);
+    					//for testing
+    					/*suboutput = desValue + suboutput;
+    					suboutput = " d:" + suboutput;*/
+    					suboutput = path[2*sorIndex][i] + suboutput;
+    					suboutput = " s:" + suboutput;
+    					desValue=path[2*sorIndex][i];
+    					int LID = searchPathID((int)path[2*sorIndex][i],(int)path[2*sorIndex+1][i]);
+    					suboutput = LID+suboutput; 
+    					if(desValue==P_node[sorIndex])
+    						flag=false;
+    					else
+    						suboutput = '|'+suboutput;
+    				}
+    			}
+    		}
+    		output+=suboutput;
+    		if(hamt!=HamiltonPath.length-2)
+    			output+='|';
+    	}
+    	return output;
     }
 }
 

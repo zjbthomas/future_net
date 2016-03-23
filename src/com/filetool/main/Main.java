@@ -32,9 +32,11 @@ public class Main
         String conditionContent = FileUtil.read(conditionFilePath, null);
 
         // 功能实现入口
+        String res=Route.setrout(graphContent);
         String resultStr = Route.searchRoute(graphContent, conditionContent);
 
         // 写入输出文件
+        
         FileUtil.write(resultFilePath, resultStr, false);
 
         LogUtil.printLog("End");
