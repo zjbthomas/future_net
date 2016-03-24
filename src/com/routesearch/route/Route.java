@@ -124,7 +124,7 @@ public final class Route
         	short finDisVec[] = new short[nodeCount];
         		//distance vector output
     		   		
-    		shortestPathTree(pathSou,pathDes,oldDisVec,finDisVec,pathCount,adjMat,nodeCount,SPT_souInd);
+    		shortestPathTree(pathSou,pathDes,oldDisVec,finDisVec,pathCount,adjMat,P_node,nodeCount,SPT_souInd);
     		for(short i=0;i<P_incSetCou+2;i++)
     		{
     			if(finDisVec[P_node[i]]!=0)
@@ -219,7 +219,7 @@ public final class Route
     	return a.toString();
     }
     
-    private static void shortestPathTree(short[] pathSou,short[] pathDes,short[] oldDisVec, short[] finDisVec, short pathCount,short[][] adjMat,int nodeCount,short souInd)
+    private static void shortestPathTree(short[] pathSou,short[] pathDes,short[] oldDisVec, short[] finDisVec, short pathCount,short[][] adjMat,short[] P_node,int nodeCount,short souInd)
     {
     	//initial the distance vector
     	for(short i=0;i<nodeCount;i++)
@@ -278,8 +278,18 @@ public final class Route
     		pathCount++;
     		
     		//update distance vector
-    		for(short i=0;i<nodeCount;i++)
-    			oldDisVec[i]=(short) Math.min(oldDisVec[i], oldDisVec[minIndex]+adjMat[minIndex][i]);
+    		if(ifMinIsIncSet(P_node,minIndex))
+    		{
+    			//set the including set node as unreachable
+    			oldDisVec[minIndex]=13000;
+    		}
+    		else
+    		{
+    			for(short i=0;i<nodeCount;i++)
+    				oldDisVec[i]=(short) Math.min(oldDisVec[i], oldDisVec[minIndex]+adjMat[minIndex][i]);
+    		}
+    		/*for(short i=0;i<nodeCount;i++)
+    			oldDisVec[i]=(short) Math.min(oldDisVec[i], oldDisVec[minIndex]+adjMat[minIndex][i]);*/
     			//existing index unreachable
     		for(short i=0;i<exiInd.length;i++)
     		{
@@ -296,6 +306,17 @@ public final class Route
     	}
     }
     
+    //determine if the minimum index is the including set node
+    private static boolean ifMinIsIncSet(short[]P_node, short minIndex)
+    {
+    	boolean result = false;
+    	for(int i=0;i<P_node.length;i++)
+    	{
+    		if(P_node[i]==minIndex)
+    			result = true;
+    	}
+    	return result;
+    }
     //considering the possibility that not all node can be connected
     private static boolean ifNoNodeRemain(short[] oldDisVec)
     {
