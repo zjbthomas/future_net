@@ -9,7 +9,6 @@ package com.routesearch.route;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map.Entry;
 
 public final class Route
 {
@@ -82,29 +81,20 @@ public final class Route
     	// Find the total number of nodes
     	nodeCount = nodes.size();
     	
-    	// Create two adjacent matrices
+    	// Create the adjacent matrix
     	int[][] adjMat= new int[nodeCount][nodeCount];
-    	int[][] adjMatLID=new int[nodeCount][nodeCount];
     	
-    	// Initialize the value of two adjacent matrices to MAXCOST and -1
+    	// Initialize the value of the adjacent matrix to MAXCOST
     	for (int i = 0; i < nodeCount; i++) {
     		for (int j = 0; j < nodeCount; j++) {
     			adjMat[i][j] = MAXCOST;
-    			adjMatLID[i][j] = -1;
     		}
     	}
 
     	// Initialize the value of two adjacent matrices according to the topology
-    	for (String edge : graphContent.split("\n")) {
-    		String[] edgeSplit = edge.split(",");
-    		int pathId = Integer.parseInt(edgeSplit[PATHID]);
-    		int pathSrc = Integer.parseInt(edgeSplit[PATHSRC]);
-    		int pathDest = Integer.parseInt(edgeSplit[PATHDEST]);
-    		int cost = Integer.parseInt(edgeSplit[COST]);
-    		
-    		if (cost < adjMat[pathSrc][pathDest]) {
-    			adjMat[pathSrc][pathDest] = cost;
-    			adjMatLID[pathSrc][pathDest] = pathId;
+    	for (Integer[] edge : edges) {
+    		if (edge[LISTCOST] < adjMat[edge[LISTPATHSRC]][edge[LISTPATHDEST]]) {
+    			adjMat[edge[LISTPATHSRC]][edge[LISTPATHDEST]] = edge[LISTCOST];
     		}
     	}
 
@@ -240,23 +230,19 @@ public final class Route
     		for (int node : exist) {
     			for (int i = 0; i < nodeCount; i++) {
     				if (adjMat[i][minIndex] != MAXCOST) {
-    					if (node == i) {
+    					if (node == i && ifNodeIsNotCoreOrSrc(node, coreNodes, src)) {
     						if (finDisVec[minIndex] == finDisVec[node] + adjMat[node][dest]) {
-    							src=node;
+    							pathSrc[pathCount] = node;
     						}
     					}
     				}
     			}
     		}
-    		pathSrc[pathCount]=src;
     		pathDest[pathCount]=dest;
     		pathCount++;
     		
     		// Update distance vector
-    		if (ifMinIsIncSet(coreNodes,minIndex)) {
-    			// Set the including set node as unreachable
-    			oldDisVec[minIndex] = MAXCOST;
-    		} else {
+    		if (!ifMinIsIncSet(coreNodes,minIndex)) {
     			for (int i = 0; i < nodeCount; i++)
     				oldDisVec[i] = (int) Math.min(oldDisVec[i], oldDisVec[minIndex] + adjMat[minIndex][i]);
     		}
@@ -273,7 +259,17 @@ public final class Route
     	}
     }
     
-
+    private static boolean ifNodeIsNotCoreOrSrc(int node, int[] coreNodes, int src) {
+    	if (node != src) {
+    		for (int i = 1; i < coreNodes.length - 1; i++) {
+    			if (node == coreNodes[i]) {
+    				return false;
+    			}
+    		}
+    	}
+    	return true;
+    }
+    
     private static boolean ifMinIsIncSet(int[] coreNodes, int minIndex) {
     	for(int node : coreNodes) {
     		if (node == minIndex) return true;
