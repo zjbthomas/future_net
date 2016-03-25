@@ -13,7 +13,7 @@ public final class FileUtil
     /** 
      * 读取文件并按行输出
      * @param filePath
-     * @param spec 允许解析的最大行数， spec==null时，解析所有行
+     * @param spec 允许解析的最大行数， spec==null时，解析所有行
      * @return
      * @author
      * @since 2016-3-1
@@ -60,7 +60,7 @@ public final class FileUtil
     /** 
      * 写文件
      * @param filePath 输出文件路径
-     * @param content 要写入的内容
+     * @param content 要写入的内容
      * @param append 是否追加
      * @return
      * @author s00274007
