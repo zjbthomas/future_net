@@ -29,12 +29,15 @@ public final class Route
 	private static final int PATHSRC = 1;
 	private static final int PATHDEST = 2;
 	private static final int COST = 3;
-	private static final int STOREPATHID = 0;
-	private static final int STORECOST = 1;
+	private static final int LISTPATHSRC = 0;
+	private static final int LISTPATHDEST = 1;
+	private static final int LISTCOST = 2;
+	private static final int HASHMAPPATHID = 0;
+	private static final int HASHMAPCOST = 1;
 	
 	/** Store the information of the topology */
 	private static HashMap<PathKey, Integer[]> edgesInfo = new HashMap<PathKey, Integer[]>();
-	private static int nodeCount;
+	private static int nodeCount = 0;
 	
 	/**
 	 * The entry point of the route search function
@@ -44,11 +47,40 @@ public final class Route
 	 */
     public static String searchRoute(String graphContent, String condition)
     {
-    	// Store the information in graphContent into a desired one
-    	storeGraphContent(graphContent);
+    	// Pre-handle of graphContent
+    	ArrayList<Integer[]> edges = new ArrayList<Integer[]>();
+    	ArrayList<Integer> nodes = new ArrayList<Integer>();
+    	for (String edge : graphContent.split("\n")) {
+    		// Store the information of graphContent into an ArrayList
+    		String[] edgeSplit = edge.split(",");
+    		int pathId = Integer.parseInt(edgeSplit[PATHID]);
+    		int pathSrc = Integer.parseInt(edgeSplit[PATHSRC]);
+    		int pathDest = Integer.parseInt(edgeSplit[PATHDEST]);
+    		int cost = Integer.parseInt(edgeSplit[COST]);
+    		
+    		edges.add(new Integer[]{pathSrc, pathDest, cost});
+    		
+    		// Store the node
+    		if (!nodes.contains(pathSrc)) {
+    			nodes.add(pathSrc);
+    		}
+    		
+    		if (!nodes.contains(pathDest)) {
+    			nodes.add(pathDest);
+    		}
+    		
+    		// Convert the information into a HashMap
+    		PathKey key=new PathKey(pathSrc, pathDest);
+    		if (edgesInfo.containsKey(key)) {
+    			if (edgesInfo.get(key)[HASHMAPPATHID] <= cost) {
+    				continue; // Skip if the old path has smaller cost
+    			}
+    		}
+    		edgesInfo.put(key, new Integer[]{pathId,cost});
+    	}
     	
     	// Find the total number of nodes
-    	nodeCount = edgesInfo.size();
+    	nodeCount = nodes.size();
     	
     	// Create two adjacent matrices
     	int[][] adjMat= new int[nodeCount][nodeCount];
@@ -86,14 +118,14 @@ public final class Route
     	int includingSetCnt = splitIncludingSet.length;
     	int[] includingSet = new int[includingSetCnt];
     	
-    	int[] nodes = new int[includingSetCnt + 2];
-    	nodes[0] = source;
-    	nodes[includingSetCnt + 1] = destination;
+    	int[] coreNodes = new int[includingSetCnt + 2];
+    	coreNodes[0] = source;
+    	coreNodes[includingSetCnt + 1] = destination;
     	
     	for (int i = 0; i < includingSetCnt; i++) {
     		int currentNode = Integer.parseInt(splitIncludingSet[i]);
     		includingSet[i] = currentNode;
-    		nodes[i + 1] = currentNode;
+    		coreNodes[i + 1] = currentNode;
     	}
     	
         // Create the path matrices
@@ -122,53 +154,36 @@ public final class Route
     		
     		// Find the SPT
         	// Declare the distance vector
-    		int SPTSrc = nodes[count];
+    		int SPTSrc = coreNodes[count];
     		int oldDisVec[] = new int[nodeCount];
         	int finDisVec[] = new int[nodeCount];
         	// The output of distance vector   		
-    		shortestPathTree(pathSrc, pathDest, oldDisVec, finDisVec, pathCount, adjMat, nodes, SPTSrc);
+    		shortestPathTree(pathSrc, pathDest, oldDisVec, finDisVec, pathCount, adjMat, coreNodes, SPTSrc);
     		for(int i = 0; i < (includingSetCnt + 2); i++) {
-    			if(finDisVec[nodes[i]] != 0) {
-    				adjMatSecond[count][i] = finDisVec[nodes[i]];
+    			if(finDisVec[coreNodes[i]] != 0) {
+    				adjMatSecond[count][i] = finDisVec[coreNodes[i]];
     			} else {
     				adjMatSecond[count][i] = MAXCOST;
     			}
     		}
+    		
+    		for(int i = 0; i < nodeCount; i++) {
+    			path[2 * count][i]=pathSrc[i];
+    			path[2 * count + 1][i]=pathDest[i];
+    		}
     	}
     	
-    	//find out the hamilton path of S_adjMat[i][j]
+    	// Find out the hamilton path and output the results
     	int[] HamiltonPath = new int[includingSetCnt + 2];
     	for(int i = 0; i < (includingSetCnt + 2); i++)
     		HamiltonPath[i] = i;
     	
-    	if(adjMatSecond[HamiltonPath[includingSetCnt]][HamiltonPath[includingSetCnt + 1]] != MAXCOST)
-    	{
-    		System.out.print(pathDet(path,HamiltonPath,nodes));
-    		System.out.print('\n');
+    	if(adjMatSecond[HamiltonPath[includingSetCnt]][HamiltonPath[includingSetCnt + 1]] != MAXCOST) {
+    		return findPath(path,HamiltonPath,coreNodes);
+    	} else {
+    		return "NA";
     	}
-    	else
-    	{
-    		System.out.print("No such path");
-    		System.out.print('\n');
-    	}
-    	StringBuilder a = new StringBuilder();
-    	
-    	
-    	return a.toString();
-    }
-    
-    public static void storeGraphContent(String graphContent) {
-    	for (String edge : graphContent.split("\n")) {
-    		String[] edgeSplit = edge.split(",");
-    		PathKey key=new PathKey(Integer.parseInt(edgeSplit[PATHSRC]), Integer.parseInt(edgeSplit[PATHDEST]));
-    		if (edgesInfo.containsKey(key)) {
-    			if (edgesInfo.get(key)[STORECOST] <= Integer.parseInt(edgeSplit[COST])) {
-    				continue; // Skip if the old path has smaller cost
-    			}
-    		}
-    		edgesInfo.put(key, new Integer[]{Integer.parseInt(edgeSplit[PATHID]),Integer.parseInt(edgeSplit[COST])});
-    	}
-    }    
+    }  
     
     /**
      * Function to find SPT
@@ -178,10 +193,10 @@ public final class Route
      * @param finDisVec
      * @param pathCount
      * @param adjMat
-     * @param nodes
+     * @param coreNodes
      * @param src
      */
-    private static void shortestPathTree(int[] pathSrc, int[] pathDest, int[] oldDisVec, int[] finDisVec, int pathCount, int[][] adjMat, int[] nodes, int src)
+    private static void shortestPathTree(int[] pathSrc, int[] pathDest, int[] oldDisVec, int[] finDisVec, int pathCount, int[][] adjMat, int[] coreNodes, int src)
     {
     	// Temporary array to store existing node
     	int[] exist = new int[nodeCount];
@@ -238,7 +253,7 @@ public final class Route
     		pathCount++;
     		
     		// Update distance vector
-    		if (ifMinIsIncSet(nodes,minIndex)) {
+    		if (ifMinIsIncSet(coreNodes,minIndex)) {
     			// Set the including set node as unreachable
     			oldDisVec[minIndex] = MAXCOST;
     		} else {
@@ -259,8 +274,8 @@ public final class Route
     }
     
 
-    private static boolean ifMinIsIncSet(int[] nodes, int minIndex) {
-    	for(int node : nodes) {
+    private static boolean ifMinIsIncSet(int[] coreNodes, int minIndex) {
+    	for(int node : coreNodes) {
     		if (node == minIndex) return true;
     	}
     	return false;
@@ -278,148 +293,67 @@ public final class Route
     	return false;
     }
     
-    //considering how the including set should be arranged
-    private static void showPath(short[] pathSou,short[] pathDes,short[] finDisVec,short[] allNodeSet)
-    {
-		System.out.print("Sou:");
-    	for(short i=0;i<pathSou.length;i++)
-			System.out.printf("%5d ",pathSou[i]);
-		System.out.print('\n');
-		System.out.print("Des:");
-		for(short i=0;i<pathSou.length;i++)
-			System.out.printf("%5d ",pathDes[i]);
-		System.out.print('\n');
-		System.out.print("Cos:");
-		for(short i=0;i<finDisVec.length;i++)
-			System.out.printf("%5d ", finDisVec[i]);
-		System.out.print("\n\n");
-		
-		short trueCount=0;
-		for(short i=0;i<allNodeSet.length;i++)
-		{
-			for(short j=0;j<pathDes.length;j++)
-			{
-				if(allNodeSet[i]==pathDes[j] && allNodeSet[i]!=pathSou[0])
-				{
-					trueCount++;
-				}				
-			}
-		}
-		if(trueCount==allNodeSet.length-1)
-		{
-			System.out.print("can reach all\n");
-		}
-		else
-		{
-			System.out.print("can't reach all\n");
-		}
-    }
-
-    public static int searchPathID(Integer src, Integer dest) {
-    	PathKey key1=new PathKey(src,dest);
-    	if (edgesInfo.containsKey(key1)) {
-    		return edgesInfo.get(key1)[0]; // return PathID
-    	}
-    	return 10000; // exception
-    }
-    
-    //find out the hamilton path of the question
-    private static int modPath(int[] HamiltonPath, int[][] S_adjMat )
-    {
-    	boolean flag=true;
-    	int cost=0;
-    	while(flag)
-    	{
-    		flag=false;
-    		for(short n=0;n<HamiltonPath.length-3;n++)
-    		{
-    			for(short m=(short) (n+2);m<HamiltonPath.length-2;m++)
-    			{
-    				if(S_adjMat[HamiltonPath[n]][HamiltonPath[m]]+S_adjMat[HamiltonPath[n+1]][HamiltonPath[m+1]]
-    						<S_adjMat[HamiltonPath[n]][HamiltonPath[n+1]]+S_adjMat[HamiltonPath[m]][HamiltonPath[m+1]])
-    				{
-    					flag=true;
-    					int[] sample = new int[HamiltonPath.length];
-    					for(short i=0;i<HamiltonPath.length;i++)
-    						sample[i]=HamiltonPath[i];
-    					for(short i=(short) (n+1);i<m+1;i++)
-    					{
-    						HamiltonPath[i]=sample[m-i+n+1];
-    					}   					
-    				}
-    			}
-    		}	
-    	}
-    	for(short i=0;i<HamiltonPath.length-1;i++)
-    		cost+=S_adjMat[HamiltonPath[i]][HamiltonPath[i+1]];
-    	//visualize the final hamilton path
-    	System.out.print("Hamilt:");
-    	for(short i=0;i<HamiltonPath.length;i++)
-    		System.out.printf("%3d", HamiltonPath[i]);
-    	System.out.print('\n');
-    	return cost;
-    	
-    }
-    
-    private static String pathDet(int[][] path,int[] HamiltonPath, int[] P_node)
-    {
-    	String output="";
-    	for (short hamt=0;hamt<HamiltonPath.length-1;hamt++) {
-    		int sorIndex=HamiltonPath[hamt];
-    		int desIndex=HamiltonPath[hamt+1];
-    		boolean flag=true;
-    		int desValue = P_node[desIndex];
-    		String suboutput="";
-    		while(flag)
-    		{	
-    			for(short i=0;i<path[0].length;i++)
-    			{
-    				if(path[2*sorIndex+1][i]==desValue)
-    				{
-    					System.out.printf("Sou: %3d\n",path[2*sorIndex][i]);
-    					System.out.printf("Des: %3d\n",desValue);
-    					suboutput = path[2*sorIndex][i] + suboutput;
-    					suboutput = " s:" + suboutput;
-    					desValue=path[2*sorIndex][i];
-    					int LID = searchPathID((int)path[2*sorIndex][i],(int)path[2*sorIndex+1][i]);
-    					suboutput = LID+suboutput; 
-    					if(desValue==P_node[sorIndex])
-    						flag=false;
+    private static String findPath(int[][] path,int[] HamiltonPath, int[] coreNodes) {
+    	String ret = "";
+    	for (int i = 0; i < (HamiltonPath.length - 1); i++) {
+    		int src = HamiltonPath[i];
+    		int dest = HamiltonPath[i + 1];
+    		int destValue = coreNodes[dest];
+    		
+    		boolean flag = true;
+    		String subString = "";
+    		while(flag) {	
+    			for (int j = 0; j < nodeCount; j++) {
+    				if (path[2 * src + 1][j] == destValue) {
+    					destValue = path[2 * src][j];
+    					int LID = searchPathID((int)path[2 * src][j],(int)path[2 * src + 1][j]);
+    					subString = LID + subString; 
+    					if(destValue == coreNodes[src])
+    						flag = false;
     					else
-    						suboutput = '|'+suboutput;
+    						subString = '|' + subString;
     				}
     			}
     		}
-    		output+=suboutput;
-    		if(hamt!=HamiltonPath.length-2)
-    			output+='|';
+    		ret += subString;
+    		if(i != HamiltonPath.length - 2)
+    			ret += '|';
     	}
-    	return output;
+    	return ret;
     }
     
-    
+    public static int searchPathID(int src, int dest) {
+    	PathKey key = new PathKey(src, dest);
+    	if (edgesInfo.containsKey(key)) {
+    		return edgesInfo.get(key)[HASHMAPPATHID];
+    	}
+    	return -1; // Exception
+    }
 }
 
 class PathKey {
     public int pathSrc;
-    public int pathDes;
+    public int pathDest;
 
-    public PathKey(int src, int des) {
+    public PathKey(int src, int dest) {
         this.pathSrc = src;
-        this.pathDes = des;
+        this.pathDest = dest;
     }
-
+    
+    @Override
     public boolean equals(Object object) {
-        if (!(object instanceof PathKey)) return false;
-
+        if (! (object instanceof PathKey)) {
+            return false;
+        }
         PathKey otherKey = (PathKey) object;
-        return (this.pathSrc == otherKey.pathSrc) && (this.pathDes == otherKey.pathDes);
+        return (this.pathSrc == otherKey.pathSrc) && (this.pathDest == otherKey.pathDest);
     }
 
+    @Override
     public int hashCode() {
-    	int result = 0; // This can be any prime number
+    	int result = 0; // any prime number
     	result = result + pathSrc;
-    	result = 600 * result + pathDes;
+    	result = 600 * result + pathDest;
     	return result;
     }
 }

@@ -41,7 +41,6 @@ public final class FileUtil
             while (((spec == null) || index++ < spec) && (str = br.readLine()) != null)
             {
                 sb.append(str + "\n");
-                System.out.println(str);
 
             }
         }
