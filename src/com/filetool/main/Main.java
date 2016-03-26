@@ -25,7 +25,6 @@ public class Main
         String conditionFilePath = args[1];
         String resultFilePath = args[2];
 
-        LogUtil.printLog("Begin");
 
         // 读取输入文件
         String graphContent = FileUtil.read(graphFilePath, null);
@@ -36,8 +35,6 @@ public class Main
 
         // 写入输出文件
         FileUtil.write(resultFilePath, resultStr, false);
-
-        LogUtil.printLog("End");
     }
 
 }

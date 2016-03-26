@@ -272,7 +272,6 @@ public final class Route
 				ret += '|';
 			}
 		}
-		System.out.println(path);
 		return ret;
     }
     
