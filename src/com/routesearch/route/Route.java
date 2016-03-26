@@ -9,6 +9,7 @@ package com.routesearch.route;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map.Entry;
 
 public final class Route
 {
@@ -20,23 +21,21 @@ public final class Route
      * @version V1
      */
 	
-	/** Maximum cost of a path */
-	private static final int MAXCOST = 13000;
-	
 	/** Store the position of information of paths */
 	private static final int PATHID = 0;
 	private static final int PATHSRC = 1;
 	private static final int PATHDEST = 2;
 	private static final int COST = 3;
-	private static final int LISTPATHSRC = 0;
-	private static final int LISTPATHDEST = 1;
-	private static final int LISTCOST = 2;
 	private static final int HASHMAPPATHID = 0;
-	private static final int HASHMAPCOST = 1;
 	
 	/** Store the information of the topology */
+	private static HashMap<Integer, Integer[]> srcDests = new HashMap<Integer, Integer[]>();
 	private static HashMap<PathKey, Integer[]> edgesInfo = new HashMap<PathKey, Integer[]>();
-	private static int nodeCount = 0;
+	/** Store the information of the demand */
+	private static int source;
+	private static int destination;
+	private static int[] includingSet;
+	private static ArrayList<Integer> coreNodes = new ArrayList<Integer>();
 	
 	/**
 	 * The entry point of the route search function
@@ -47,26 +46,29 @@ public final class Route
     public static String searchRoute(String graphContent, String condition)
     {
     	// Pre-handle of graphContent
-    	ArrayList<Integer[]> edges = new ArrayList<Integer[]>();
-    	ArrayList<Integer> nodes = new ArrayList<Integer>();
+    	HashMap<Integer, ArrayList<Integer>> srcDestsTemp = new HashMap<Integer, ArrayList<Integer>>();
+    	HashMap<Integer, ArrayList<Integer>> srcDestsCost = new HashMap<Integer, ArrayList<Integer>>();
     	for (String edge : graphContent.split("\n")) {
-    		// Store the information of graphContent into an ArrayList
     		String[] edgeSplit = edge.split(",");
     		int pathId = Integer.parseInt(edgeSplit[PATHID]);
     		int pathSrc = Integer.parseInt(edgeSplit[PATHSRC]);
     		int pathDest = Integer.parseInt(edgeSplit[PATHDEST]);
     		int cost = Integer.parseInt(edgeSplit[COST]);
     		
-    		edges.add(new Integer[]{pathSrc, pathDest, cost});
-    		
-    		// Store the node
-    		if (!nodes.contains(pathSrc)) {
-    			nodes.add(pathSrc);
+    		// One node to all its destinations
+    		ArrayList<Integer> dests;
+    		ArrayList<Integer> costs;
+    		if (srcDestsTemp.containsKey(pathSrc)) {
+    			dests = srcDestsTemp.get(pathSrc);
+    			costs = srcDestsCost.get(pathSrc);
+    		} else {
+    			dests = new ArrayList<Integer>();
+    			costs = new ArrayList<Integer>();
     		}
-    		
-    		if (!nodes.contains(pathDest)) {
-    			nodes.add(pathDest);
-    		}
+    		dests.add(pathDest);
+    		srcDestsTemp.put(pathSrc, dests);
+    		costs.add(cost);
+    		srcDestsCost.put(pathSrc, costs);
     		
     		// Convert the information into a HashMap
     		PathKey key=new PathKey(pathSrc, pathDest);
@@ -78,244 +80,148 @@ public final class Route
     		edgesInfo.put(key, new Integer[]{pathId,cost});
     	}
     	
-    	// Find the total number of nodes
-    	nodeCount = nodes.size();
-    	
-    	// Create the adjacent matrix
-    	int[][] adjMat= new int[nodeCount][nodeCount];
-    	
-    	// Initialize the value of the adjacent matrix to MAXCOST
-    	for (int i = 0; i < nodeCount; i++) {
-    		for (int j = 0; j < nodeCount; j++) {
-    			adjMat[i][j] = MAXCOST;
-    		}
-    	}
-
-    	// Initialize the value of two adjacent matrices according to the topology
-    	for (Integer[] edge : edges) {
-    		if (edge[LISTCOST] < adjMat[edge[LISTPATHSRC]][edge[LISTPATHDEST]]) {
-    			adjMat[edge[LISTPATHSRC]][edge[LISTPATHDEST]] = edge[LISTCOST];
-    		}
+    	// Sort the source-to-destinations HashMap
+    	for (Entry<Integer, ArrayList<Integer>> kvp : srcDestsTemp.entrySet()) {
+    		int src = kvp.getKey();
+    		Integer[] dests = (Integer[]) kvp.getValue().toArray(new Integer[0]);
+    		Integer[] costs = (Integer[]) srcDestsCost.get(src).toArray(new Integer[0]);
+    		
+    		// Quicksort
+    		quickSort(costs, dests, 0, costs.length - 1);
+    		
+    		srcDests.put(src, dests);
     	}
 
     	// Get the information of source, destination and including set
     	String[] conditionSplit = condition.split(",|\n");
     	
-    	int source = Integer.parseInt(conditionSplit[0]);
-    	int destination = Integer.parseInt(conditionSplit[1]);
+    	source = Integer.parseInt(conditionSplit[0]);
+    	destination = Integer.parseInt(conditionSplit[1]);
     	
     	String[] splitIncludingSet = conditionSplit[2].split("\\|");
     	int includingSetCnt = splitIncludingSet.length;
-    	int[] includingSet = new int[includingSetCnt];
-    	
-    	int[] coreNodes = new int[includingSetCnt + 2];
-    	coreNodes[0] = source;
-    	coreNodes[includingSetCnt + 1] = destination;
+    	includingSet = new int[includingSetCnt];
+
+    	coreNodes.add(source); // Store the source of demand
     	
     	for (int i = 0; i < includingSetCnt; i++) {
     		int currentNode = Integer.parseInt(splitIncludingSet[i]);
     		includingSet[i] = currentNode;
-    		coreNodes[i + 1] = currentNode;
+    		coreNodes.add(currentNode);
     	}
     	
-        // Create the path matrices
-    	int[] pathSrc = new int[nodeCount];
-    	int[] pathDest = new int[nodeCount];
-    	int pathCount; 
-    	int[][] path = new int[2 * (includingSetCnt + 2)][nodeCount];
-    	
-    	
-        // Crate the second-stage adjacent matrix and initialization
-    	int[][] adjMatSecond = new int[includingSetCnt + 2][includingSetCnt + 2];
-    	for (int i = 0; i < (includingSetCnt + 2); i++) {
-    		for (int j = 0; j < (includingSetCnt + 2); j++) {
-    			adjMatSecond[i][j] = MAXCOST;
-    		}
-    	} 	
-    	
-    	// Find SPTs for all nodes in including set
-    	for (int count = 0; count < (includingSetCnt + 2); count++) {
-    		// Reset the path tables and pathCount
-    		for(int i = 0; i < nodeCount; i++) {
-    			pathSrc[i] = -1;
-    			pathDest[i] = -1;
-    		}
-    		pathCount = 0;
-    		
-    		// Find the SPT
-        	// Declare the distance vector
-    		int SPTSrc = coreNodes[count];
-    		int oldDisVec[] = new int[nodeCount];
-        	int finDisVec[] = new int[nodeCount];
-        	// The output of distance vector   		
-    		shortestPathTree(pathSrc, pathDest, oldDisVec, finDisVec, pathCount, adjMat, coreNodes, SPTSrc);
-    		for(int i = 0; i < (includingSetCnt + 2); i++) {
-    			if(finDisVec[coreNodes[i]] != 0) {
-    				adjMatSecond[count][i] = finDisVec[coreNodes[i]];
-    			} else {
-    				adjMatSecond[count][i] = MAXCOST;
-    			}
-    		}
-    		
-    		for(int i = 0; i < nodeCount; i++) {
-    			path[2 * count][i]=pathSrc[i];
-    			path[2 * count + 1][i]=pathDest[i];
-    		}
-    	}
-    	
-    	// Find out the hamilton path and output the results
-    	int[] HamiltonPath = new int[includingSetCnt + 2];
-    	for(int i = 0; i < (includingSetCnt + 2); i++)
-    		HamiltonPath[i] = i;
-    	
-    	if(adjMatSecond[HamiltonPath[includingSetCnt]][HamiltonPath[includingSetCnt + 1]] != MAXCOST) {
-    		return findPath(path,HamiltonPath,coreNodes);
-    	} else {
-    		return "NA";
-    	}
-    }  
+		ArrayList<Integer> path = new ArrayList<Integer>();
+		path.add(source);
+		Integer pastCoreNodesCnt = 1;
+		if (findNextCoreNode(source, path, pastCoreNodesCnt)) {
+			String ret = "";
+			for (int i = 0; i < path.size() - 1; i++) {
+				ret += searchPathID(path.get(i), path.get(i + 1));
+				if (i != path.size() - 2) {
+					ret += '|';
+				}
+			}
+			return ret;
+		} else {
+			return "NA";
+		}
+    }
     
-    /**
-     * Function to find SPT
-     * @param pathSrc
-     * @param pathDest
-     * @param oldDisVec
-     * @param finDisVec
-     * @param pathCount
-     * @param adjMat
-     * @param coreNodes
-     * @param src
-     */
-    private static void shortestPathTree(int[] pathSrc, int[] pathDest, int[] oldDisVec, int[] finDisVec, int pathCount, int[][] adjMat, int[] coreNodes, int src)
-    {
-    	// Temporary array to store existing node
-    	int[] exist = new int[nodeCount];
+    public static void quickSort(Integer[] arr, Integer[] ret, int low, int high) {
+    	int l = low;
+    	int h = high;
+    	int povit = arr[low];
     	
-    	// Initial the distance vector and existing node
-    	for(int i = 0; i < nodeCount; i++) {
-    		oldDisVec[i]=adjMat[src][i];
-    		finDisVec[i]=oldDisVec[i];
-    		
-    		exist[i]=-1;
-    	}
-    	finDisVec[src]=0;
-    	
-    	// Initialization on existing node
-    	int existCnt=0;
-    	exist[existCnt] = src;
-    	
-    	// Generate the shortest path tree
-    	while(ifNoNodeRemain(oldDisVec))
-    	{
-    		// Find the minimum value
-    		int minIndex = 0;
-    		int minValue = MAXCOST;
-    		for(int i = 0; i < nodeCount;i++)
-    		{
-    			if(oldDisVec[i]<minValue)
-    			{
-    				minValue=oldDisVec[i];
-    				minIndex=i;
-    			}
+    	while (l < h) {
+    		while (l < h && arr[h] >= povit) h--;
+    		if (l < h) {
+    			int temp = arr[h];
+    			arr[h] = arr[l];
+    			arr[l] = temp;
+    			
+    			temp = ret[h];
+    			ret[h] = ret[l];
+    			ret[l] = temp;
+    			
+    			l++;
     		}
     		
-    		// Add the destination node to existing index
-    		existCnt++;
-    		exist[existCnt] = minIndex;
+    		while (l < h && arr[l] <= povit) l++;
     		
-    		// Path decision
-    		// Path destination
-    		int dest=minIndex;
-    		// Path source
-    		for (int node : exist) {
-    			for (int i = 0; i < nodeCount; i++) {
-    				if (adjMat[i][minIndex] != MAXCOST) {
-    					if (node == i && ifNodeIsNotCoreOrSrc(node, coreNodes, src)) {
-    						if (finDisVec[minIndex] == finDisVec[node] + adjMat[node][dest]) {
-    							pathSrc[pathCount] = node;
-    						}
+    		if (l < h) {
+    			int temp = arr[h];
+    			arr[h] = arr[l];
+    			arr[l] = temp;
+    			
+    			temp = ret[h];
+    			ret[h] = ret[l];
+    			ret[l] = temp;
+    			
+    			h--;
+    		}
+    	}
+    	
+    	if (l > low) quickSort(arr, ret, low, l - 1);
+    	if (h < high) quickSort(arr, ret, l + 1, high);
+    }
+    
+    public static boolean findNextCoreNode(int src, ArrayList<Integer> lastPath, Integer lastCnt) {
+    	Integer[] dests = srcDests.get(src);
+    	ArrayList<Integer> tempPath = lastPath;
+    	Integer tempCnt = lastCnt;
+    	
+    	if (lastCnt == coreNodes.size()) {
+    		for (int node : dests) {
+    			if (node == destination) {
+    				lastPath.add(destination);
+    				return true;
+    			} else {
+    				if (!lastPath.contains(node)) {
+    					tempPath.add(node);
+    					if (findNextCoreNode(node, tempPath, tempCnt)) {
+    						lastPath = tempPath;
+    						return true;
+    					} else {
+    						tempPath.remove(tempPath.size() - 1);
     					}
     				}
     			}
     		}
-    		pathDest[pathCount]=dest;
-    		pathCount++;
-    		
-    		// Update distance vector
-    		if (!ifMinIsIncSet(coreNodes,minIndex)) {
-    			for (int i = 0; i < nodeCount; i++)
-    				oldDisVec[i] = (int) Math.min(oldDisVec[i], oldDisVec[minIndex] + adjMat[minIndex][i]);
-    		}
-
-    		// Existing index unreachable
-    		for(int i = 0; i < exist.length; i++) {
-    			if (exist[i] != -1) oldDisVec[exist[i]] = MAXCOST;
-    		}
-
-    		// Update final distance vector
-    		for (int i = 0; i < nodeCount; i++) {
-    			finDisVec[i] = (int) Math.min(finDisVec[i], oldDisVec[i]);
-    		}
-    	}
-    }
-    
-    private static boolean ifNodeIsNotCoreOrSrc(int node, int[] coreNodes, int src) {
-    	if (node != src) {
-    		for (int i = 1; i < coreNodes.length - 1; i++) {
-    			if (node == coreNodes[i]) {
-    				return false;
-    			}
-    		}
-    	}
-    	return true;
-    }
-    
-    private static boolean ifMinIsIncSet(int[] coreNodes, int minIndex) {
-    	for(int node : coreNodes) {
-    		if (node == minIndex) return true;
-    	}
-    	return false;
-    }
-    
-    /**
-     * Check if there is node not covered in the generation of SPT
-     * @param oldDisVec
-     * @return
-     */
-    private static boolean ifNoNodeRemain(int[] oldDisVec) {
-    	for (int node : oldDisVec) {
-    		if (node != MAXCOST) return true;
-    	}
-    	return false;
-    }
-    
-    private static String findPath(int[][] path,int[] HamiltonPath, int[] coreNodes) {
-    	String ret = "";
-    	for (int i = 0; i < (HamiltonPath.length - 1); i++) {
-    		int src = HamiltonPath[i];
-    		int dest = HamiltonPath[i + 1];
-    		int destValue = coreNodes[dest];
-    		
-    		boolean flag = true;
-    		String subString = "";
-    		while(flag) {	
-    			for (int j = 0; j < nodeCount; j++) {
-    				if (path[2 * src + 1][j] == destValue) {
-    					destValue = path[2 * src][j];
-    					int LID = searchPathID((int)path[2 * src][j],(int)path[2 * src + 1][j]);
-    					subString = LID + subString; 
-    					if(destValue == coreNodes[src])
-    						flag = false;
-    					else
-    						subString = '|' + subString;
+    		return false;
+    	} else {
+    		// First, find a core node
+    		for (int node : dests) {
+    			if (!lastPath.contains(node)) {
+    				if (coreNodes.contains(node)) {
+    					tempPath.add(node);
+    					tempCnt++;
+    					if (findNextCoreNode(node, tempPath, tempCnt)) {
+    						lastPath = tempPath;
+    						lastCnt = tempCnt;
+    						return true;
+    					} else {
+    						tempPath.remove(tempPath.size() - 1);
+    						tempCnt--;
+    					}
     				}
     			}
     		}
-    		ret += subString;
-    		if(i != HamiltonPath.length - 2)
-    			ret += '|';
+    		// If no core node, expand from the first node (with less weight)
+    		for (int node : dests) {
+    			if (!lastPath.contains(node)) {
+    				tempPath.add(node);
+    				if (findNextCoreNode(node, tempPath, tempCnt)) {
+    					lastPath = tempPath;
+    					lastCnt = tempCnt;
+    					return true;
+    				} else {
+    					tempPath.remove(tempPath.size() - 1);
+    					tempCnt--;
+    				}
+    			}
+    		}
+    		return false;
     	}
-    	return ret;
     }
     
     public static int searchPathID(int src, int dest) {
