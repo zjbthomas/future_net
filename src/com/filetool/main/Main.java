@@ -1,7 +1,6 @@
 package com.filetool.main;
 
 import com.filetool.util.FileUtil;
-import com.filetool.util.LogUtil;
 import com.routesearch.route.Route;
 
 /**
