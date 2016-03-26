@@ -170,13 +170,43 @@ public final class Route
     		}
     	}
     	
+    	/*
+    	 * for testing
+    	 * remember to delete
+    	 */
+    	System.out.print("adjMatSecond is \n");
+    	for(int i=0;i<adjMatSecond.length;i++){
+    		for(int j=0;j<adjMatSecond.length;j++){
+    			System.out.printf("%6d", adjMatSecond[i][j]);
+    		}
+    		System.out.print('\n');
+    	}
+    	
     	// Find out the hamilton path and output the results
     	int[] HamiltonPath = new int[includingSetCnt + 2];
-    	for(int i = 0; i < (includingSetCnt + 2); i++)
-    		HamiltonPath[i] = i;
+    	HamiltonPath[0]=0;HamiltonPath[includingSetCnt+1]=includingSetCnt+1;
+    	for(int i = 1; i < (includingSetCnt + 1); i++)
+    		HamiltonPath[i] = includingSetCnt + 1-i;
+    	/*
+    	 * for testing
+    	 * remember to delete
+    	 */
+    	System.out.print("HamiltonPath is \n");
+    	for(int i=0;i<HamiltonPath.length;i++)
+    		System.out.printf("%3d",HamiltonPath[i]);
+    	System.out.print('\n');
+    	modPath(HamiltonPath,adjMatSecond);
+    	/*
+    	 * for testing
+    	 * remember to delete
+    	 */
+    	System.out.print("After modPath: HamiltonPath is \n");
+    	for(int i=0;i<HamiltonPath.length;i++)
+    		System.out.printf("%3d",HamiltonPath[i]);
+    	System.out.print('\n');
     	
-    	if(adjMatSecond[HamiltonPath[includingSetCnt]][HamiltonPath[includingSetCnt + 1]] != MAXCOST) {
-    		return findPath(path,HamiltonPath,coreNodes);
+    	if(ifHamilPathIsThr(HamiltonPath,adjMatSecond)) {
+    		return findPath(path,HamiltonPath,coreNodes,adjMat);
     	} else {
     		return "NA";
     	}
@@ -299,7 +329,75 @@ public final class Route
     	return false;
     }
     
-    private static String findPath(int[][] path,int[] HamiltonPath, int[] coreNodes) {
+    /**
+     * find out the hamilton path
+     * @param HamiltonPath
+     * @param adjMatSecond
+     */
+    private static void modPath(int[] HamiltonPath, int[][] adjMatSecond ){
+    	boolean flag=false;
+    	while(flag){
+    		for(int n=0;n<HamiltonPath.length-3;n++){
+    			for(int m=(short) (n+2);m<HamiltonPath.length-2;m++){
+    				if(adjMatSecond[HamiltonPath[n]][HamiltonPath[m]]+adjMatSecond[HamiltonPath[n+1]][HamiltonPath[m+1]]
+    						<adjMatSecond[HamiltonPath[n]][HamiltonPath[n+1]]+adjMatSecond[HamiltonPath[m]][HamiltonPath[m+1]]){
+    					/*
+    					 * for testing
+    					 * remember to delete
+    					 */
+    					System.out.printf("n is %d, m is %d.\n", n,m);
+    					/*
+    					 * 
+    					 */
+    					flag=true;
+    					int[] sample = new int[HamiltonPath.length];
+    					for(int i=0;i<HamiltonPath.length;i++){
+    						sample[i]=HamiltonPath[i];
+    					}
+    					for(int i=(n+1);i<m+1;i++){
+    						HamiltonPath[i]=sample[m-i+n+1];
+    					} 
+    					/*
+    					 * for testing
+    					 * remember to delete
+    					 */
+    					for(int i=0;i<HamiltonPath.length;i++){
+    						System.out.printf("%3d", HamiltonPath[i]);
+    					}
+    					System.out.print('\n');
+    						
+    				}
+    			}
+    		}
+    	}
+    
+    }
+    
+    /**
+     * determine whether the hamilton path is a valid path 
+     * @param HamiltonPath
+     * @param adjMatSecond
+     * @return
+     */
+    private static boolean ifHamilPathIsThr(int[] HamiltonPath,int[][] adjMatSecond)
+    {
+    	boolean result = true;
+    	for(int i=0;i<HamiltonPath.length-1;i++){
+    		if(adjMatSecond[HamiltonPath[i]][HamiltonPath[i+1]] == MAXCOST){
+    			result = false;
+    		}
+    	}
+    	return result;
+    }
+    /**
+     * find out the path according to the Hamilton Path
+     * @param path
+     * @param HamiltonPath
+     * @param coreNodes
+     * @param adjMat
+     */
+    private static String findPath(int[][] path,int[] HamiltonPath, int[] coreNodes, int[][] adjMat) {
+    	int cost = 0;
     	String ret = "";
     	for (int i = 0; i < (HamiltonPath.length - 1); i++) {
     		int src = HamiltonPath[i];
@@ -312,7 +410,8 @@ public final class Route
     			for (int j = 0; j < nodeCount; j++) {
     				if (path[2 * src + 1][j] == destValue) {
     					destValue = path[2 * src][j];
-    					int LID = searchPathID((int)path[2 * src][j],(int)path[2 * src + 1][j]);
+    					int LID = searchPathID(path[2 * src][j],path[2 * src + 1][j]);
+    					cost+=adjMat[path[2 * src][j]][path[2 * src + 1][j]];
     					subString = LID + subString; 
     					if(destValue == coreNodes[src])
     						flag = false;
@@ -325,6 +424,7 @@ public final class Route
     		if(i != HamiltonPath.length - 2)
     			ret += '|';
     	}
+    	System.out.printf("Cost: %3d\n", cost);
     	return ret;
     }
     
