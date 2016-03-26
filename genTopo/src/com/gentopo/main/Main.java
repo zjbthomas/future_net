@@ -4,6 +4,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
 
@@ -43,14 +44,24 @@ public class Main {
 		
 		HashMap<Integer, Integer> pathStatus = new HashMap<Integer, Integer>();
 		
+		int threshold = (MAXPATH > (maxNodes - 1))? (maxNodes - 1): MAXPATH;
+		
 		for (int i = 0; i < maxNodes; i++) {
 			int currentCnt = 0;
 			if (pathStatus.containsKey(i)) {
 				currentCnt = pathStatus.get(i);
 			}
 			
+			if (currentCnt >= threshold) {
+				continue;
+			}
+			
 			// How many nodes will be the current node's destinations
-			int destsNum = rand.nextInt(MAXPATH - currentCnt) + 1;
+			int destsNum = rand.nextInt(threshold - currentCnt) + 1;
+			
+			ArrayList<Integer> destsList = new ArrayList<Integer>();
+			
+			destsList.add(i);
 			
 			for (int j = 0; j < destsNum; j++) {
 				int testNode;
@@ -60,13 +71,17 @@ public class Main {
 					if (pathStatus.containsKey(testNode)) {
 						testCnt = pathStatus.get(testNode);
 					}
-				} while (testCnt >= maxNodes);
+				} while ((testCnt >= threshold) || (destsList.contains(testNode))); 
 				
-				String out = pathCnt + "," + i + "," + testNode + "," + (rand.nextInt(MAXCOST + 1)) + "\n";
+				String out = pathCnt + "," + i + "," + testNode + "," + (rand.nextInt(MAXCOST) + 1) + "\n";
 				bw.write(out);
 				
+				pathStatus.put(testNode, testCnt + 1);
+				destsList.add(testNode);
 				pathCnt++;
 			}
+			
+			pathStatus.put(i, currentCnt + destsNum);
 		}
 		
 		if (fw != null) bw.close();
