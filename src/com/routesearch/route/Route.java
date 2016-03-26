@@ -121,6 +121,7 @@ public final class Route
 					ret += '|';
 				}
 			}
+			System.out.println(path);
 			return ret;
 		} else {
 			return "NA";
@@ -191,7 +192,7 @@ public final class Route
     	} else {
     		// First, find a core node
     		for (int node : dests) {
-    			if (!lastPath.contains(node)) {
+    			if ((!lastPath.contains(node)) && (node != destination)) {
     				if (coreNodes.contains(node)) {
     					tempPath.add(node);
     					tempCnt++;
@@ -208,15 +209,16 @@ public final class Route
     		}
     		// If no core node, expand from the first node (with less weight)
     		for (int node : dests) {
-    			if (!lastPath.contains(node)) {
-    				tempPath.add(node);
-    				if (findNextCoreNode(node, tempPath, tempCnt)) {
-    					lastPath = tempPath;
-    					lastCnt = tempCnt;
-    					return true;
-    				} else {
-    					tempPath.remove(tempPath.size() - 1);
-    					tempCnt--;
+    			if (!lastPath.contains(node) && (node != destination)) {
+    				if (!coreNodes.contains(node)) {
+    					tempPath.add(node);
+        				if (findNextCoreNode(node, tempPath, tempCnt)) {
+        					lastPath = tempPath;
+        					lastCnt = tempCnt;
+        					return true;
+        				} else {
+        					tempPath.remove(tempPath.size() - 1);
+        				}
     				}
     			}
     		}
