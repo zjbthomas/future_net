@@ -107,7 +107,7 @@ public class Main {
 		} while (source == destination);
 		
 		// How many nodes should be in the including set
-		int includingSetNum = rand.nextInt(maxNodes - 1);
+		int includingSetNum = rand.nextInt(maxNodes - 2) + 1;
 		
 		String out = source + "," + destination + ",";
 		
