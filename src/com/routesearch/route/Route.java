@@ -16,10 +16,13 @@ public final class Route
     /**
      * Class for routing
      * 
-     * @author XXX
+     * @author JindDeBuXing
      * @since 2016-3-4
      * @version V1
      */
+	
+	/** Maximum cost estimation */
+	private static final int MAXCOST = 12000;
 	
 	/** Store the position of information of paths */
 	private static final int PATHID = 0;
@@ -27,6 +30,9 @@ public final class Route
 	private static final int PATHDEST = 2;
 	private static final int COST = 3;
 	private static final int HASHMAPPATHID = 0;
+	private static final int HASHMAPCOST = 1;
+	private static final int INPUTCNT = 0;
+	private static final int INPUTCOST = 1;
 	
 	/** Store the information of the topology */
 	private static HashMap<Integer, Integer[]> srcDests = new HashMap<Integer, Integer[]>();
@@ -110,19 +116,26 @@ public final class Route
     		coreNodes.add(currentNode);
     	}
     	
-		ArrayList<Integer> path = new ArrayList<Integer>();
-		path.add(source);
-		Integer pastCoreNodesCnt = 1;
-		if (findNextCoreNode(source, path, pastCoreNodesCnt)) {
-			String ret = "";
-			for (int i = 0; i < path.size() - 1; i++) {
-				ret += searchPathID(path.get(i), path.get(i + 1));
-				if (i != path.size() - 2) {
-					ret += '|';
+		ArrayList<Integer> basePath = new ArrayList<Integer>();
+		basePath.add(source);
+		int baseCost = 0;
+		int[] input = new int[]{1, 0};
+		
+		if (findNextCoreNode(source, basePath, input, MAXCOST)) {
+			baseCost = input[INPUTCOST];
+			boolean flag = true;
+			do {
+				ArrayList<Integer> path = new ArrayList<Integer>();
+				path.add(source);
+				input = new int[]{1, 0};
+				if (findNextCoreNode(source, path, input, baseCost)) {
+					basePath = path;
+					baseCost = input[INPUTCOST];
+				} else {
+					flag = false;
 				}
-			}
-			System.out.println(path);
-			return ret;
+			} while (flag);
+			return pathOutput(basePath);
 		} else {
 			return "NA";
 		}
@@ -166,24 +179,35 @@ public final class Route
     	if (h < high) quickSort(arr, ret, l + 1, high);
     }
     
-    public static boolean findNextCoreNode(int src, ArrayList<Integer> lastPath, Integer lastCnt) {
+    public static boolean findNextCoreNode(int src, ArrayList<Integer> lastPath, int[] input, int baseCost) {
     	Integer[] dests = srcDests.get(src);
     	ArrayList<Integer> tempPath = lastPath;
-    	Integer tempCnt = lastCnt;
+    	int[] tempInput = new int[]{input[INPUTCNT], input[INPUTCOST]};
     	
-    	if (lastCnt == coreNodes.size()) {
+    	if (input[INPUTCNT] == coreNodes.size()) {
     		for (int node : dests) {
     			if (node == destination) {
-    				lastPath.add(destination);
-    				return true;
+    				int pathCost = searchPathCost(src, destination);
+    				if (input[INPUTCOST] + pathCost < baseCost) {
+    					lastPath.add(destination);
+    					input[INPUTCOST] += pathCost;
+        				return true;
+    				}
     			} else {
     				if (!lastPath.contains(node)) {
-    					tempPath.add(node);
-    					if (findNextCoreNode(node, tempPath, tempCnt)) {
-    						lastPath = tempPath;
-    						return true;
-    					} else {
-    						tempPath.remove(tempPath.size() - 1);
+    					int pathCost = searchPathCost(src, node);
+    					int newCost = input[INPUTCOST] + pathCost;
+    					if (newCost < baseCost) {
+    						tempPath.add(node);
+    						tempInput[INPUTCOST] = newCost;
+        					if (findNextCoreNode(node, tempPath, tempInput, baseCost)) {
+        						lastPath = tempPath;
+        						input[INPUTCOST] = tempInput[INPUTCOST];
+        						return true;
+        					} else {
+        						tempPath.remove(tempPath.size() - 1);
+        						tempInput[INPUTCOST] -= pathCost;
+        					}
     					}
     				}
     			}
@@ -194,15 +218,22 @@ public final class Route
     		for (int node : dests) {
     			if ((!lastPath.contains(node)) && (node != destination)) {
     				if (coreNodes.contains(node)) {
-    					tempPath.add(node);
-    					tempCnt++;
-    					if (findNextCoreNode(node, tempPath, tempCnt)) {
-    						lastPath = tempPath;
-    						lastCnt = tempCnt;
-    						return true;
-    					} else {
-    						tempPath.remove(tempPath.size() - 1);
-    						tempCnt--;
+    					int pathCost = searchPathCost(src, node);
+    					int newCost = input[INPUTCOST] + pathCost;
+    					if (newCost < baseCost) {
+    						tempPath.add(node);
+    						tempInput[INPUTCNT]++;
+        					tempInput[INPUTCOST] = newCost;
+        					if (findNextCoreNode(node, tempPath, tempInput, baseCost)) {
+        						lastPath = tempPath;
+        						input[INPUTCNT] = tempInput[INPUTCNT];
+        						input[INPUTCOST] = tempInput[INPUTCOST];
+        						return true;
+        					} else {
+        						tempPath.remove(tempPath.size() - 1);
+        						tempInput[INPUTCNT]--;
+        						tempInput[INPUTCOST] -= pathCost;
+        					}
     					}
     				}
     			}
@@ -211,14 +242,21 @@ public final class Route
     		for (int node : dests) {
     			if (!lastPath.contains(node) && (node != destination)) {
     				if (!coreNodes.contains(node)) {
-    					tempPath.add(node);
-        				if (findNextCoreNode(node, tempPath, tempCnt)) {
-        					lastPath = tempPath;
-        					lastCnt = tempCnt;
-        					return true;
-        				} else {
-        					tempPath.remove(tempPath.size() - 1);
-        				}
+    					int pathCost = searchPathCost(src, node);
+    					int newCost = input[INPUTCOST] + pathCost;
+    					if (newCost < baseCost) {
+    						tempPath.add(node);
+    						tempInput[INPUTCOST] = newCost;
+            				if (findNextCoreNode(node, tempPath, tempInput, baseCost)) {
+            					lastPath = tempPath;
+            					input[INPUTCNT] = tempInput[INPUTCNT];
+            					input[INPUTCOST] = tempInput[INPUTCOST];
+            					return true;
+            				} else {
+            					tempPath.remove(tempPath.size() - 1);
+            					tempInput[INPUTCOST] -= pathCost;
+            				}
+    					}
     				}
     			}
     		}
@@ -226,12 +264,26 @@ public final class Route
     	}
     }
     
+    public static String pathOutput(ArrayList<Integer> path) {
+    	String ret = "";
+		for (int i = 0; i < path.size() - 1; i++) {
+			ret += searchPathID(path.get(i), path.get(i + 1));
+			if (i != path.size() - 2) {
+				ret += '|';
+			}
+		}
+		System.out.println(path);
+		return ret;
+    }
+    
+    public static int searchPathCost(int src, int dest) {
+    	PathKey key = new PathKey(src, dest);
+    	return edgesInfo.get(key)[HASHMAPCOST];
+    }
+    
     public static int searchPathID(int src, int dest) {
     	PathKey key = new PathKey(src, dest);
-    	if (edgesInfo.containsKey(key)) {
-    		return edgesInfo.get(key)[HASHMAPPATHID];
-    	}
-    	return -1; // Exception
+    	return edgesInfo.get(key)[HASHMAPPATHID];
     }
 }
 
