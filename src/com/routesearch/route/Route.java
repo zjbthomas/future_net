@@ -184,6 +184,10 @@ public final class Route
     	ArrayList<Integer> tempPath = lastPath;
     	int[] tempInput = new int[]{input[INPUTCNT], input[INPUTCOST]};
     	
+    	if (dests == null) {
+    		return false;
+    	}
+    	
     	if (input[INPUTCNT] == coreNodes.size()) {
     		for (int node : dests) {
     			if (node == destination) {
