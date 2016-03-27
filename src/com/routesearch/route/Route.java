@@ -45,7 +45,6 @@ public final class Route
 	/** Global variables */
 	private static ArrayList<Integer> basePath;
 	private static int baseCost;
-	private static ArrayList<Integer> checkedNodes;
 	
 	/**
 	 * The entry point of the route search function
@@ -124,17 +123,17 @@ public final class Route
 		basePath.add(source);
 		baseCost = MAXCOST;
 		int[] input = new int[]{1, 0};
-		checkedNodes = new ArrayList<Integer>();
+		ArrayList<Integer> uselessNodes = new ArrayList<Integer>();
 		
-		if (findNextCoreNode(source, basePath, input)) {
+		if (findNextCoreNode(source, basePath, input, uselessNodes)) {
 			baseCost = input[INPUTCOST];
 			boolean flag = true;
 			do {
 				ArrayList<Integer> path = new ArrayList<Integer>();
 				path.add(source);
 				input = new int[]{1, 0};
-				checkedNodes = new ArrayList<Integer>();
-				if (findNextCoreNode(source, path, input)) {
+				uselessNodes = new ArrayList<Integer>();
+				if (findNextCoreNode(source, path, input, uselessNodes)) {
 					basePath = path;
 					baseCost = input[INPUTCOST];
 				} else {
@@ -185,10 +184,10 @@ public final class Route
     	if (h < high) quickSort(arr, ret, l + 1, high);
     }
     
-    public static boolean findNextCoreNode(int src, ArrayList<Integer> lastPath, int[] input) {
+    public static boolean findNextCoreNode(int src, ArrayList<Integer> lastPath, int[] input, ArrayList<Integer> lastUseless) {
     	Integer[] dests = srcDests.get(src);
-    	ArrayList<Integer> tempPath = lastPath;
     	int[] tempInput = new int[]{input[INPUTCNT], input[INPUTCOST]};
+    	ArrayList<Integer> tempUseless = new ArrayList<Integer>(lastUseless);
     	
     	if (dests == null) {
     		return false;
@@ -204,48 +203,46 @@ public final class Route
         				return true;
     				}
     			} else {
-    				if (!lastPath.contains(node) && !checkedNodes.contains(node)) {
+    				if (!lastPath.contains(node) && !lastUseless.contains(node)) {
     					int pathCost = searchPathCost(src, node);
     					int newCost = input[INPUTCOST] + pathCost;
     					if (newCost < baseCost) {
-    						tempPath.add(node);
+    						lastPath.add(node);
     						tempInput[INPUTCOST] = newCost;
-        					if (findNextCoreNode(node, tempPath, tempInput)) {
-        						lastPath = tempPath;
+        					if (findNextCoreNode(node, lastPath, tempInput, tempUseless)) {
         						input[INPUTCOST] = tempInput[INPUTCOST];
         						return true;
         					} else {
-        						tempPath.remove(tempPath.size() - 1);
+        						lastPath.remove(lastPath.size() - 1);
         						tempInput[INPUTCOST] -= pathCost;
-        						checkedNodes.add(node);
         					}
     					}
     				}
     			}
     		}
-    		checkedNodes = new ArrayList<Integer>();
+    		if (!coreNodes.contains(src)) {
+    			lastUseless.add(src);
+    		}
     		return false;
     	} else {
     		// First, find a core node
     		for (int node : dests) {
-    			if ((!lastPath.contains(node)) && (node != destination) && !checkedNodes.contains(node)) {
+    			if ((!lastPath.contains(node)) && (node != destination) && !lastUseless.contains(node)) {
     				if (coreNodes.contains(node)) {
     					int pathCost = searchPathCost(src, node);
     					int newCost = input[INPUTCOST] + pathCost;
     					if (newCost < baseCost) {
-    						tempPath.add(node);
+    						lastPath.add(node);
     						tempInput[INPUTCNT]++;
         					tempInput[INPUTCOST] = newCost;
-        					if (findNextCoreNode(node, tempPath, tempInput)) {
-        						lastPath = tempPath;
+        					if (findNextCoreNode(node, lastPath, tempInput, tempUseless)) {
         						input[INPUTCNT] = tempInput[INPUTCNT];
         						input[INPUTCOST] = tempInput[INPUTCOST];
         						return true;
         					} else {
-        						tempPath.remove(tempPath.size() - 1);
+        						lastPath.remove(lastPath.size() - 1);
         						tempInput[INPUTCNT]--;
         						tempInput[INPUTCOST] -= pathCost;
-        						checkedNodes.add(node);
         					}
     					}
     				}
@@ -253,28 +250,28 @@ public final class Route
     		}
     		// If no core node, expand from the first node (with less weight)
     		for (int node : dests) {
-    			if (!lastPath.contains(node) && (node != destination) && !checkedNodes.contains(node)) {
+    			if (!lastPath.contains(node) && (node != destination) && !lastUseless.contains(node)) {
     				if (!coreNodes.contains(node)) {
     					int pathCost = searchPathCost(src, node);
     					int newCost = input[INPUTCOST] + pathCost;
     					if (newCost < baseCost) {
-    						tempPath.add(node);
+    						lastPath.add(node);
     						tempInput[INPUTCOST] = newCost;
-            				if (findNextCoreNode(node, tempPath, tempInput)) {
-            					lastPath = tempPath;
+            				if (findNextCoreNode(node, lastPath, tempInput, tempUseless)) {
             					input[INPUTCNT] = tempInput[INPUTCNT];
             					input[INPUTCOST] = tempInput[INPUTCOST];
             					return true;
             				} else {
-            					tempPath.remove(tempPath.size() - 1);
+            					lastPath.remove(lastPath.size() - 1);
             					tempInput[INPUTCOST] -= pathCost;
-            					checkedNodes.add(node);
             				}
     					}
     				}
     			}
     		}
-    		checkedNodes = new ArrayList<Integer>();
+    		if (!coreNodes.contains(src)) {
+    			lastUseless.add(src);
+    		}
     		return false;
     	}
     }
@@ -287,7 +284,6 @@ public final class Route
 				ret += '|';
 			}
 		}
-		System.out.println(path);
 		return ret;
     }
     
