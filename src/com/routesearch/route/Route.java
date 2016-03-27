@@ -45,6 +45,8 @@ public final class Route
 	/** Global variables */
 	private static ArrayList<Integer> basePath;
 	private static int baseCost;
+	private static HashMap<Integer, HashMap<Integer, ArrayList<ArrayList<Integer>>>> history = new HashMap<Integer, HashMap<Integer, ArrayList<ArrayList<Integer>>>>();
+	private static boolean hasResult = false;
 	
 	/**
 	 * The entry point of the route search function
@@ -54,6 +56,24 @@ public final class Route
 	 */
     public static String searchRoute(String graphContent, String condition)
     {
+    	// Get the information of source, destination and including set
+    	String[] conditionSplit = condition.split(",|\n");
+    	
+    	source = Integer.parseInt(conditionSplit[0]);
+    	destination = Integer.parseInt(conditionSplit[1]);
+    	
+    	String[] splitIncludingSet = conditionSplit[2].split("\\|");
+    	int includingSetCnt = splitIncludingSet.length;
+    	includingSet = new int[includingSetCnt];
+
+    	coreNodes.add(source); // Store the source of demand
+    	
+    	for (int i = 0; i < includingSetCnt; i++) {
+    		int currentNode = Integer.parseInt(splitIncludingSet[i]);
+    		includingSet[i] = currentNode;
+    		coreNodes.add(currentNode);
+    	}
+    	
     	// Pre-handle of graphContent
     	HashMap<Integer, ArrayList<Integer>> srcDestsTemp = new HashMap<Integer, ArrayList<Integer>>();
     	HashMap<Integer, ArrayList<Integer>> srcDestsCost = new HashMap<Integer, ArrayList<Integer>>();
@@ -63,6 +83,11 @@ public final class Route
     		int pathSrc = Integer.parseInt(edgeSplit[PATHSRC]);
     		int pathDest = Integer.parseInt(edgeSplit[PATHDEST]);
     		int cost = Integer.parseInt(edgeSplit[COST]);
+    		
+    		// Will not store any paths that points to source
+    		if (pathDest == source) {
+    			continue;
+    		}
     		
     		// One node to all its destinations
     		ArrayList<Integer> dests;
@@ -101,49 +126,15 @@ public final class Route
     		srcDests.put(src, dests);
     	}
 
-    	// Get the information of source, destination and including set
-    	String[] conditionSplit = condition.split(",|\n");
-    	
-    	source = Integer.parseInt(conditionSplit[0]);
-    	destination = Integer.parseInt(conditionSplit[1]);
-    	
-    	String[] splitIncludingSet = conditionSplit[2].split("\\|");
-    	int includingSetCnt = splitIncludingSet.length;
-    	includingSet = new int[includingSetCnt];
-
-    	coreNodes.add(source); // Store the source of demand
-    	
-    	for (int i = 0; i < includingSetCnt; i++) {
-    		int currentNode = Integer.parseInt(splitIncludingSet[i]);
-    		includingSet[i] = currentNode;
-    		coreNodes.add(currentNode);
-    	}
-    	
-		basePath = new ArrayList<Integer>();
-		basePath.add(source);
+		ArrayList<Integer> path = new ArrayList<Integer>();
+		path.add(source);
 		baseCost = MAXCOST;
 		int[] input = new int[]{1, 0};
 		ArrayList<Integer> uselessNodes = new ArrayList<Integer>();
-		
-		if (findNextCoreNode(source, basePath, input, uselessNodes)) {
-			baseCost = input[INPUTCOST];
-			boolean flag = true;
-			do {
-				ArrayList<Integer> path = new ArrayList<Integer>();
-				path.add(source);
-				input = new int[]{1, 0};
-				uselessNodes = new ArrayList<Integer>();
-				if (findNextCoreNode(source, path, input, uselessNodes)) {
-					basePath = path;
-					baseCost = input[INPUTCOST];
-				} else {
-					flag = false;
-				}
-			} while (flag);
-			return pathOutput(basePath);
-		} else {
-			return "NA";
-		}
+		history = new HashMap<Integer, HashMap<Integer, ArrayList<ArrayList<Integer>>>>();
+		findNextCoreNode(source, path, input, uselessNodes);
+
+		return pathOutput(basePath);
     }
     
     public static void quickSort(Integer[] arr, Integer[] ret, int low, int high) {
@@ -184,107 +175,200 @@ public final class Route
     	if (h < high) quickSort(arr, ret, l + 1, high);
     }
     
-    public static boolean findNextCoreNode(int src, ArrayList<Integer> lastPath, int[] input, ArrayList<Integer> lastUseless) {
+    public static void findNextCoreNode(int src, ArrayList<Integer> lastPath, int[] input, ArrayList<Integer> lastUseless) {
+    	// First, check if the node has history
+		if (history.containsKey(src)) {
+    		HashMap<Integer, ArrayList<ArrayList<Integer>>> pathSet = history.get(src);
+    		for (int pathCnt : pathSet.keySet()) {
+    			if (pathCnt + input[INPUTCNT] == coreNodes.size()) {
+    				ArrayList<ArrayList<Integer>> historyPaths = pathSet.get(pathCnt);
+    				for (ArrayList<Integer> possiblePath : historyPaths) {
+    					boolean noRepass = true;
+    					for (int pathNode : lastPath) {
+        					if (possiblePath.contains(pathNode)) {
+        						noRepass = false;
+        						break;
+        					} 
+        				}
+    					if (noRepass) {
+    						int lastNode = lastPath.get(lastPath.size() - 1);
+    						int lastCost = input[INPUTCOST];
+    						boolean noMoreCost = true;
+    						for (int node : possiblePath) {
+    							int pathCost = searchPathCost(lastNode, node);
+    							int newCost = lastCost + pathCost;
+    							if (newCost >= baseCost) {
+    								noMoreCost = false;
+    								break;
+    							}
+    							// Update last records
+    							lastNode = node;
+    							lastCost = newCost;
+    						}
+    						if (noMoreCost) {
+    							int addCnt = possiblePath.size();
+    							int costBackup = input[INPUTCOST];
+    							
+    							lastPath.addAll(possiblePath);
+    							input[INPUTCOST] = lastCost;
+    							
+    							basePath = new ArrayList<Integer>(lastPath);
+    							baseCost = input[INPUTCOST];
+    							hasResult = true;
+    							
+    							// Roll back and continue searching
+    							for (int i = 0; i < addCnt; i++) {
+    								lastPath.remove(lastPath.size() - 1);
+    							}
+    							input[INPUTCOST] = costBackup;
+    							return;
+    						}
+    					}
+    				}
+    			}
+    		}
+    	}
+    	
     	Integer[] dests = srcDests.get(src);
     	int[] tempInput = new int[]{input[INPUTCNT], input[INPUTCOST]};
-    	ArrayList<Integer> tempUseless = new ArrayList<Integer>(lastUseless);
+    	
+    	ArrayList<Integer> tempUseless;
+    	if (coreNodes.contains(src)) {
+    		tempUseless = new ArrayList<Integer>();
+    	} else {
+    		tempUseless = lastUseless;
+    	}
     	
     	if (dests == null) {
-    		return false;
+    		tempUseless.add(src);
+    		return;
     	}
     	
-    	if (input[INPUTCNT] == coreNodes.size()) {
-    		for (int node : dests) {
-    			if (node == destination) {
-    				int pathCost = searchPathCost(src, destination);
+    	// First round, search whether there is destination or core node
+    	for (int node : dests) {
+    		// Find destination
+    		if (node == destination) {
+    			if (input[INPUTCNT] == coreNodes.size()) {
+    				int pathCost = searchPathCost(src, node);
     				if (input[INPUTCOST] + pathCost < baseCost) {
-    					lastPath.add(destination);
+    					lastPath.add(node);
     					input[INPUTCOST] += pathCost;
-        				return true;
+
+    					basePath = new ArrayList<Integer>(lastPath);
+						baseCost = input[INPUTCOST];
+						hasResult = true;
+						
+						// Roll back and continue searching
+						lastPath.remove(lastPath.size() - 1);
+						input[INPUTCOST] -=pathCost;
+						return;
     				}
     			} else {
-    				if (!lastPath.contains(node) && !lastUseless.contains(node)) {
-    					int pathCost = searchPathCost(src, node);
-    					int newCost = input[INPUTCOST] + pathCost;
-    					if (newCost < baseCost) {
-    						lastPath.add(node);
-    						tempInput[INPUTCOST] = newCost;
-        					if (findNextCoreNode(node, lastPath, tempInput, tempUseless)) {
-        						input[INPUTCOST] = tempInput[INPUTCOST];
-        						return true;
-        					} else {
-        						lastPath.remove(lastPath.size() - 1);
-        						tempInput[INPUTCOST] -= pathCost;
-        					}
+    				// Save the path as a history
+    				ArrayList<Integer> savePath = new ArrayList<Integer>();
+    				savePath.add(destination);
+    				int pathCnt = 0;
+    				for (int i = lastPath.size() - 1; i >= 1; i--) {
+    					HashMap<Integer, ArrayList<ArrayList<Integer>>> pathSet;
+    					if (history.containsKey(lastPath.get(i))) {
+    						pathSet = history.get(lastPath.get(i));
+    					} else {
+    						pathSet = new HashMap<Integer, ArrayList<ArrayList<Integer>>>();
+    					}
+    					
+    					ArrayList<ArrayList<Integer>> historyPaths;
+    					if (pathSet.containsKey(pathCnt)) {
+    						historyPaths = pathSet.get(pathCnt);
+    					} else {
+    						historyPaths = new ArrayList<ArrayList<Integer>>();
+    					}
+    					
+    					historyPaths.add(savePath);
+    					pathSet.put(pathCnt, historyPaths);
+    					history.put(lastPath.get(i), pathSet);
+    					
+    					ArrayList<Integer> newSavePath = new ArrayList<Integer>();
+    					newSavePath.add(lastPath.get(i));
+    					newSavePath.addAll(savePath);
+    					savePath = newSavePath;
+    					
+    					if (coreNodes.contains(lastPath.get(i))) {
+    						pathCnt++;
     					}
     				}
+    				continue;
     			}
+    			continue;
     		}
-    		if (!coreNodes.contains(src)) {
-    			lastUseless.add(src);
-    		}
-    		return false;
-    	} else {
-    		// First, find a core node
-    		for (int node : dests) {
-    			if ((!lastPath.contains(node)) && (node != destination) && !lastUseless.contains(node)) {
-    				if (coreNodes.contains(node)) {
-    					int pathCost = searchPathCost(src, node);
-    					int newCost = input[INPUTCOST] + pathCost;
-    					if (newCost < baseCost) {
-    						lastPath.add(node);
-    						tempInput[INPUTCNT]++;
-        					tempInput[INPUTCOST] = newCost;
-        					if (findNextCoreNode(node, lastPath, tempInput, tempUseless)) {
-        						input[INPUTCNT] = tempInput[INPUTCNT];
-        						input[INPUTCOST] = tempInput[INPUTCOST];
-        						return true;
-        					} else {
-        						lastPath.remove(lastPath.size() - 1);
-        						tempInput[INPUTCNT]--;
-        						tempInput[INPUTCOST] -= pathCost;
-        					}
-    					}
-    				}
-    			}
-    		}
-    		// If no core node, expand from the first node (with less weight)
-    		for (int node : dests) {
-    			if (!lastPath.contains(node) && (node != destination) && !lastUseless.contains(node)) {
-    				if (!coreNodes.contains(node)) {
-    					int pathCost = searchPathCost(src, node);
-    					int newCost = input[INPUTCOST] + pathCost;
-    					if (newCost < baseCost) {
-    						lastPath.add(node);
-    						tempInput[INPUTCOST] = newCost;
-            				if (findNextCoreNode(node, lastPath, tempInput, tempUseless)) {
-            					input[INPUTCNT] = tempInput[INPUTCNT];
-            					input[INPUTCOST] = tempInput[INPUTCOST];
-            					return true;
-            				} else {
-            					lastPath.remove(lastPath.size() - 1);
-            					tempInput[INPUTCOST] -= pathCost;
-            				}
-    					}
-    				}
-    			}
-    		}
-    		if (!coreNodes.contains(src)) {
-    			lastUseless.add(src);
-    		}
-    		return false;
+    		
+    		// Find core node (exclude the case that the node is a destination)
+    		if ((!lastPath.contains(node)) && coreNodes.contains(node)) {
+				int pathCost = searchPathCost(src, node);
+				int newCost = input[INPUTCOST] + pathCost;
+				if (newCost < baseCost) {
+					lastPath.add(node);
+					tempInput[INPUTCNT]++;
+					tempInput[INPUTCOST] = newCost;
+					findNextCoreNode(node, lastPath, tempInput, tempUseless);
+					
+					// Roll back
+					lastPath.remove(lastPath.size() - 1);
+					tempInput[INPUTCNT]--;
+					tempInput[INPUTCOST] -= pathCost;
+				}
+			}
     	}
+    	
+    	// Second round, expand to other nodes (with less weight)
+    	for (int node : dests) {
+    		if (!lastPath.contains(node) && (node != destination) && !coreNodes.contains(node) && !lastUseless.contains(node)) {
+    			if (input[INPUTCNT] == coreNodes.size()) {
+    				int pathCost = searchPathCost(src, node);
+					int newCost = input[INPUTCOST] + pathCost;
+					if (newCost < baseCost) {
+						lastPath.add(node);
+						tempInput[INPUTCOST] = newCost;
+    					findNextCoreNode(node, lastPath, tempInput, tempUseless);
+    					
+    					// Roll back
+    					lastPath.remove(lastPath.size() - 1);
+    					tempInput[INPUTCOST] -= pathCost;
+					}
+        		} else {
+        			int pathCost = searchPathCost(src, node);
+					int newCost = input[INPUTCOST] + pathCost;
+					if (newCost < baseCost) {
+						lastPath.add(node);
+						tempInput[INPUTCOST] = newCost;
+        				findNextCoreNode(node, lastPath, tempInput, tempUseless);
+        				
+        				// Roll back
+        				lastPath.remove(lastPath.size() - 1);
+        				tempInput[INPUTCOST] -= pathCost;
+					}
+        		}
+    		}
+    	}
+    	if (!coreNodes.contains(src)) {
+    		lastUseless.add(src);
+    	}
+    	return;
     }
     
     public static String pathOutput(ArrayList<Integer> path) {
-    	String ret = "";
-		for (int i = 0; i < path.size() - 1; i++) {
-			ret += searchPathID(path.get(i), path.get(i + 1));
-			if (i != path.size() - 2) {
-				ret += '|';
-			}
-		}
-		return ret;
+    	if (hasResult) {
+    		String ret = "";
+    		for (int i = 0; i < path.size() - 1; i++) {
+    			ret += searchPathID(path.get(i), path.get(i + 1));
+    			if (i != path.size() - 2) {
+    				ret += '|';
+    			}
+    		}
+    		System.out.println(path);
+    		return ret;
+    	} else {
+    		return "NA";
+    	}
     }
     
     public static int searchPathCost(int src, int dest) {
