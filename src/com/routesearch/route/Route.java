@@ -182,30 +182,28 @@ public final class Route
     		System.out.print('\n');
     	}
     	
-    	// Find out the hamilton path and output the results
     	int[] HamiltonPath = new int[includingSetCnt + 2];
-    	HamiltonPath[0]=0;HamiltonPath[includingSetCnt+1]=includingSetCnt+1;
-    	for(int i = 1; i < (includingSetCnt + 1); i++)
-    		HamiltonPath[i] = includingSetCnt + 1-i;
+    	boolean findAPath = false;
+    	findAPath=modPath(HamiltonPath,adjMatSecond);
     	/*
     	 * for testing
     	 * remember to delete
     	 */
     	System.out.print("HamiltonPath is \n");
-    	for(int i=0;i<HamiltonPath.length;i++)
+    	for(int i=0;i<HamiltonPath.length;i++){
     		System.out.printf("%3d",HamiltonPath[i]);
+    	}
     	System.out.print('\n');
-    	modPath(HamiltonPath,adjMatSecond);
+    	System.out.print("All nodes are \n");
+    	for(int i=0;i<coreNodes.length;i++){
+    		System.out.printf("%3d",coreNodes[i]);
+    	}
+    	System.out.print('\n');
     	/*
-    	 * for testing
-    	 * remember to delete
+    	 * 
     	 */
-    	System.out.print("After modPath: HamiltonPath is \n");
-    	for(int i=0;i<HamiltonPath.length;i++)
-    		System.out.printf("%3d",HamiltonPath[i]);
-    	System.out.print('\n');
     	
-    	if(ifHamilPathIsThr(HamiltonPath,adjMatSecond)) {
+    	if(findAPath) {
     		return findPath(path,HamiltonPath,coreNodes,adjMat);
     	} else {
     		return "NA";
@@ -334,61 +332,168 @@ public final class Route
      * @param HamiltonPath
      * @param adjMatSecond
      */
-    private static void modPath(int[] HamiltonPath, int[][] adjMatSecond ){
-    	boolean flag=false;
-    	while(flag){
-    		for(int n=0;n<HamiltonPath.length-3;n++){
-    			for(int m=(short) (n+2);m<HamiltonPath.length-2;m++){
-    				if(adjMatSecond[HamiltonPath[n]][HamiltonPath[m]]+adjMatSecond[HamiltonPath[n+1]][HamiltonPath[m+1]]
-    						<adjMatSecond[HamiltonPath[n]][HamiltonPath[n+1]]+adjMatSecond[HamiltonPath[m]][HamiltonPath[m+1]]){
-    					/*
-    					 * for testing
-    					 * remember to delete
-    					 */
-    					System.out.printf("n is %d, m is %d.\n", n,m);
-    					/*
-    					 * 
-    					 */
-    					flag=true;
-    					int[] sample = new int[HamiltonPath.length];
-    					for(int i=0;i<HamiltonPath.length;i++){
-    						sample[i]=HamiltonPath[i];
-    					}
-    					for(int i=(n+1);i<m+1;i++){
-    						HamiltonPath[i]=sample[m-i+n+1];
-    					} 
-    					/*
-    					 * for testing
-    					 * remember to delete
-    					 */
-    					for(int i=0;i<HamiltonPath.length;i++){
-    						System.out.printf("%3d", HamiltonPath[i]);
-    					}
-    					System.out.print('\n');
-    						
+    private static boolean modPath(int[] HamiltonPath, int[][] adjMatSecond ){
+    	boolean findAPath = false;
+    	
+    	int nodeCountSecond = HamiltonPath.length;   	
+
+    	//cost session
+    	int oldCost = MAXCOST;
+    	
+    	//matrix to store the interim result
+    	int[][] adjMatSecondTemp = new int[nodeCountSecond][nodeCountSecond];
+    	for(int i=0;i<nodeCountSecond;i++){
+    		for(int j=0;j<nodeCountSecond;j++){
+    			adjMatSecondTemp[i][j] = MAXCOST;
+    		}
+    	}
+    	   	
+    	//loop variable session
+    	int lastNode = nodeCountSecond-2;
+    	int sou = 0;
+    	boolean loopBack = false;
+    	boolean loopBackLast = false;
+    	int[] endNode = new int[nodeCountSecond-2];
+    	for(int i =0;i<nodeCountSecond-2;i++){
+    		endNode[i]=-1;
+    	}
+    	
+    	//exiPath session
+    	int[] exiPath = new int[nodeCountSecond];
+    	for(int i=0;i<nodeCountSecond;i++)
+    		exiPath[i]=-1;
+    	exiPath[0] = sou;
+    	exiPath[nodeCountSecond-1]=nodeCountSecond-1;
+    	int exiPathCou = 0;
+    	
+    	//while loop to search through all path
+    	while(exiPathCou >= 0){
+    		//while loop to search through a path
+        	while(ifNoOutOrReaLastNode(adjMatSecondTemp,adjMatSecond,exiPath,sou,exiPathCou,lastNode,endNode,loopBack )){         		    			
+   					
+    			//find out one of the possible node
+    			int posIndex = 0;
+    			innerloop:
+    			for(int i=0;i<nodeCountSecond;i++){
+    				if(adjMatSecondTemp[exiPathCou][i] != MAXCOST){   					
+    					posIndex = i;
+    					break innerloop; 
     				}
     			}
+
+    			//add the chosen node the the path
+    			exiPathCou++;
+    			exiPath[exiPathCou] = posIndex;
+    			
+    			//change the source for the next loop
+    			sou = posIndex;
+    			//initial the loop back
+    			loopBack = false;
+    			loopBackLast = false;
+    			for(int i=0;i<nodeCountSecond-2;i++){
+    				endNode[i] = -1;
+    			}
+    			
+    		}         	
+        	
+    		if(adjMatSecond[sou][nodeCountSecond-1]!=MAXCOST && exiPathCou == lastNode){
+    			//calculate the new cost
+    			int newCost = 0;
+    			for(int i=0;i<nodeCountSecond-1;i++){
+    				newCost+=adjMatSecond[exiPath[i]][exiPath[i+1]];
+    			}
+    			//find and record the better Hamilton Path
+    			if(newCost < oldCost){
+    				for(int j=0;j<nodeCountSecond;j++){
+    					HamiltonPath[j]=exiPath[j];
+    				}
+    				oldCost = newCost;
+    			}
+    			//indicate find a path
+    			findAPath = true;
+    			
+    			//loop back procedure
+    			loop1:
+    			for(int i=0;i<nodeCountSecond-2;i++){
+    				if(endNode[i] == -1){
+    					endNode[i] = exiPath[exiPathCou];
+    					break loop1;
+    				}
+    			}    			
+    			loopBack = true;
+    			loopBackLast = true;
+    			exiPath[exiPathCou] = -1;
+    			exiPathCou--;
+    			sou=exiPath[exiPathCou];   	    	
+    		}else{
+    			//loop back procedure
+    			if(loopBackLast)
+    			{
+    				for(int i=0;i<nodeCountSecond-2;i++){
+    					endNode[i]=-1;
+        			} 
+    			}
+    			loop2:
+    			for(int i=0;i<nodeCountSecond-2;i++){
+    				if(endNode[i] == -1){
+    					endNode[i] = exiPath[exiPathCou];
+    					break loop2;
+    				}
+    			}    			
+    			loopBack = true;
+    			loopBackLast = true;
+    			exiPath[exiPathCou]=-1;
+    			exiPathCou--;
+    			if(exiPathCou >=0){
+    				sou=exiPath[exiPathCou];
+    			}
+    			
     		}
-    	}
-    
+    	} 
+    	return findAPath;
     }
     
-    /**
-     * determine whether the hamilton path is a valid path 
-     * @param HamiltonPath
-     * @param adjMatSecond
-     * @return
-     */
-    private static boolean ifHamilPathIsThr(int[] HamiltonPath,int[][] adjMatSecond)
-    {
-    	boolean result = true;
-    	for(int i=0;i<HamiltonPath.length-1;i++){
-    		if(adjMatSecond[HamiltonPath[i]][HamiltonPath[i+1]] == MAXCOST){
-    			result = false;
+    private static boolean ifNoOutOrReaLastNode(int[][] adjMatSecondTemp, int[][] adjMatSecond, int[] exiPath, int sou, int exiPathCou, int lastNode, int[] endNode,boolean loopBack ){
+    	
+    	
+    	boolean result = false;
+    	int nodeCountSecond = exiPath.length;
+    	//store the current distance vector
+		if(!loopBack){
+			for(int i=0;i<nodeCountSecond;i++){
+				adjMatSecondTemp[exiPathCou][i]=adjMatSecond[sou][i];
+			}	    	
+			//exist nodes are unreachable
+			for(int i=0;i<nodeCountSecond;i++){
+				if(exiPath[i] != -1){
+					adjMatSecondTemp[exiPathCou][exiPath[i]] = MAXCOST;
+				}
+			}
+		}else{
+			//end node is unreachable
+			for(int i=0;i<endNode.length;i++){
+				if(endNode[i]!=-1){
+					adjMatSecondTemp[exiPathCou][endNode[i]] = MAXCOST;
+				}
+				
+			}
+		}
+    	outerloop:
+		for(int i=0;i<adjMatSecondTemp.length;i++){
+    		if(adjMatSecondTemp[exiPathCou][i] != MAXCOST && exiPathCou!= lastNode){
+    			result = true;
+    			break outerloop;
     		}
     	}
+		//erase the endNode as a source record
+		if(!result && exiPathCou!= lastNode){
+			for(int i=0;i<nodeCountSecond;i++){
+				adjMatSecondTemp[exiPathCou][i]=MAXCOST;
+			}
+		}
     	return result;
     }
+          
     /**
      * find out the path according to the Hamilton Path
      * @param path
