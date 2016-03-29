@@ -11,7 +11,7 @@
 #define TOPOSRC 1
 #define TOPODEST 2
 #define TOPOCOST 3
-#define MAXCOST 12001
+#define MAXCOST 21
 
 //你要完成的功能总入口
 void search_route(char *topoData[5000], int edge_num, char *demandData)
@@ -175,18 +175,240 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
     delete [] commaPos;
     delete [] tubePos;
 
-    for (int i = 0; i < coreNodesCnt; i++) {
-        record_result(coreNodes[i]);
+    // Fade connection from destination to source
+    int fadeN = source * n + destination;
+    topo[fadeN] = 0;
+
+	lprec * lp;
+
+    int xcol = n * n; // x : n * n
+	int Ncol = xcol + n; // u : n
+	REAL * row;
+	int cnt;
+	int * colno;
+
+	lp = make_lp(0, Ncol);
+
+
+	// Set objective
+	cnt = 0;
+	colno = new int[Ncol];
+	row = new REAL[Ncol];
+	for (int i = 0; i < xcol; i++) {
+        colno[cnt] = i + 1;
+        row[cnt++] = topo[i];
+	}
+    set_obj_fnex(lp, cnt, row, colno);
+    delete [] colno;
+    delete [] row;
+
+    // Set x to be binary
+    for (int i = 0; i < xcol; i++) {
+        set_binary(lp, i + 1, TRUE);
     }
 
-    /*
-	lprec * lp;
-	lp = make_lp(0, 4);
+    // Set u to be integer, no need to set u >= 0 since it is inherited in lpsolve
+    for (int i = xcol; i < Ncol; i++) {
+        set_int(lp, i + 1, TRUE);
+    }
 
-	delete_lp(lp);
-	*/
+	set_add_rowmode(lp, TRUE);
+
+	// Connect source and destination
+	cnt = 0;
+	colno = new int[Ncol];
+	row = new REAL[Ncol];
+	colno[cnt] = fadeN + 1;
+	row[cnt++] = 1;
+	add_constraintex(lp, cnt, row, colno, EQ, 1);
+	delete [] colno;
+	delete [] row;
+
+    // Cost control
+    for (int i = 0; i < xcol; i++) {
+        if (i != fadeN) {
+            cnt = 0;
+            colno = new int[Ncol];
+            row = new REAL[Ncol];
+            colno[cnt] = i + 1;
+            row[cnt++] = topo[i];
+            add_constraintex(lp, cnt, row, colno, LE, MAXCOST - 1);
+            delete [] colno;
+            delete [] row;
+        }
+    }
+
+    // Nodes control
+    for (int i = 0; i < n; i++) {
+        cnt = 0;
+        colno = new int[Ncol];
+        row = new REAL[Ncol];
+        for (int j = 0; j < n; j++) {
+            if (i != j) {
+                colno[cnt] = j * n + i + 1;
+                row[cnt++] = 1;
+                colno[cnt] = i * n + j + 1;
+                row[cnt++] = -1;
+            }
+        }
+        add_constraintex(lp, cnt, row, colno, EQ, 0);
+        delete [] colno;
+        delete [] row;
+    }
+
+    // Pass every node no more than one time
+    for (int i = 0; i < n; i++) {
+        cnt = 0;
+        colno = new int[Ncol];
+        row = new REAL[Ncol];
+        for (int j = 0; j < n; j++) {
+            colno[cnt] = j * n + i + 1;
+            row[cnt++] = 1;
+        }
+        add_constraintex(lp, cnt, row, colno, LE, 1);
+        delete [] colno;
+        delete [] row;
+    }
+    for (int i = 0; i < n; i++) {
+        cnt = 0;
+        colno = new int[Ncol];
+        row = new REAL[Ncol];
+        for (int j = 0; j < n; j++) {
+            colno[cnt] = i * n + j + 1;
+            row[cnt++] = 1;
+        }
+        add_constraintex(lp, cnt, row, colno, LE, 1);
+        delete [] colno;
+        delete [] row;
+    }
+
+    // Must pass all core nodes
+    for (int i = 0; i < coreNodesCnt; i++) {
+        cnt = 0;
+        colno = new int[Ncol];
+        row = new REAL[Ncol];
+        for (int j =0; j < n; j++) {
+            colno[cnt] = j * n + coreNodes[i] + 1;
+            row[cnt++] = 1;
+        }
+        add_constraintex(lp, cnt, row, colno, EQ, 1);
+        delete [] colno;
+        delete [] row;
+    }
+    for (int i = 0; i < coreNodesCnt; i++) {
+        cnt = 0;
+        colno = new int[Ncol];
+        row = new REAL[Ncol];
+        for (int j =0; j < n; j++) {
+            colno[cnt] = coreNodes[i] * n + j + 1;
+            row[cnt++] = 1;
+        }
+        add_constraintex(lp, cnt, row, colno, EQ, 1);
+        delete [] colno;
+        delete [] row;
+    }
+
+    // Get rid of loop
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if ((i != j) && (j != source)) {
+                cnt = 0;
+                colno = new int[Ncol];
+                row = new REAL[Ncol];
+                colno[cnt] = xcol + i + 1;
+                row[cnt++] = 1;
+                colno[cnt] = xcol + j + 1;
+                row[cnt++] = -1;
+                colno[cnt] = j * n + i + 1;
+                row[cnt++] = n;
+                add_constraintex(lp, cnt, row, colno, LE, n - 1);
+                delete [] colno;
+                delete [] row;
+            }
+        }
+    }
+    for (int i = 0; i < n; i++) {
+        cnt = 0;
+        colno = new int[Ncol];
+        row = new REAL[Ncol];
+        // Set u
+        colno[cnt] = xcol + i + 1;
+        row[cnt++] = 1;
+        // Set x
+        for (int j = 0; j < n; j++) {
+            if (i != j) {
+                colno[cnt] = j * n + i + 1;
+                row[cnt++] = -1;
+                colno[cnt] = i * n + j + 1;
+                row[cnt++] = -1;
+            }
+        }
+        add_constraintex(lp, cnt, row, colno, GE, -1);
+        delete [] colno;
+        delete [] row;
+    }
+    for (int i = 0; i < n; i++) {
+        cnt = 0;
+        colno = new int[Ncol];
+        row = new REAL[Ncol];
+        // Set u
+        colno[cnt] = xcol + i + 1;
+        row[cnt++] = -1;
+        // Set x
+        for (int j = 0; j < n; j++) {
+            if (i != j) {
+                colno[cnt] = j * n + i + 1;
+                row[cnt++] = n;
+                colno[cnt] = i * n + j + 1;
+                row[cnt++] = n;
+            }
+        }
+        add_constraintex(lp, cnt, row, colno, GE, 0);
+        delete [] colno;
+        delete [] row;
+    }
+
+    set_add_rowmode(lp, FALSE);
+
+    // Set to minimize
+    set_minim(lp);
+
+    // Decrease report
+    set_verbose(lp, NEUTRAL);
+
+    // Solve
+    if (solve(lp) == 0) {
+        row = new REAL[Ncol];
+        get_variables(lp, row);
+
+        int maxU = 0;
+        for (int i = xcol; i < Ncol; i++) {
+            if (row[i] > maxU) {
+                maxU = row[i];
+            }
+        }
+
+        int * path = new int[maxU];
+
+        int now = 1;
+        while (now <= maxU) {
+            for (int i = xcol; i < Ncol; i++) {
+                if (row[i] == now) {
+                    path[now - 1] = i - xcol;
+                    now++;
+                }
+            }
+        }
+
+        for (int i = 0; i < maxU - 1; i++) {
+            record_result(pathIds[path[i + 1] * n + path[i]]);
+        }
+        delete [] row;
+    }
+
 	// Delete memory
 	delete [] topo;
 	delete [] pathIds;
 	delete [] coreNodes;
+	delete_lp(lp);
 }
