@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="future_net" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="Debug/bin/future_net" prefix_auto="1" extension_auto="1" />
+				<Option object_output="Debug/obj/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="Release/bin/future_net" prefix_auto="1" extension_auto="1" />
+				<Option object_output="Release/obj/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+		</Compiler>
+		<Unit filename="future_net.cpp" />
+		<Unit filename="io.cpp" />
+		<Unit filename="lib_io.h" />
+		<Unit filename="lib_record.h" />
+		<Unit filename="lib_time.h" />
+		<Unit filename="liblpsolve55.a" />
+		<Unit filename="lp_Hash.h" />
+		<Unit filename="lp_SOS.h" />
+		<Unit filename="lp_lib.h" />
+		<Unit filename="lp_matrix.h" />
+		<Unit filename="lp_mipbb.h" />
+		<Unit filename="lp_types.h" />
+		<Unit filename="lp_utils.h" />
+		<Unit filename="route.cpp" />
+		<Unit filename="route.h" />
+		<Extensions>
+			<code_completion />
+			<debugger />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
