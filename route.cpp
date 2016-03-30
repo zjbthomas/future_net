@@ -24,9 +24,15 @@ void search_route(char *topo[5000], int edge_num, char *demand)
 
     // Convert from topo
     int n = 0; // Number of nodes
+    int delPath = 0;
     for (int i = 0; i < edge_num; i++) {
         int beginPos = 0;
         int infoCnt = 0;
+
+        int id;
+        int src;
+        int dest;
+        int cost;
         for (int j = 0; j < strlen(topo[i]); j++) {
             if (topo[i][j] == ',') {
                 char * numStr = new char[j - beginPos];
@@ -38,14 +44,14 @@ void search_route(char *topo[5000], int edge_num, char *demand)
 
                 switch (infoCnt) {
                     case TOPOID:
-                        pathIds[i] = num;
+                        id = num;
                         break;
                     case TOPOSRC:
-                        pathSrcs[i] = num;
+                        src = num;
                         if (num > n) n = num;
                         break;
                     case TOPODEST:
-                        pathDests[i] = num;
+                        dest = num;
                         if (num > n) n = num;
                         break;
                 }
@@ -53,7 +59,7 @@ void search_route(char *topo[5000], int edge_num, char *demand)
                 beginPos = j + 1;
                 infoCnt++;
                 if (infoCnt == INFONUM - 1) {
-                    // Write pathCosts
+                    // Get cost
                     char * numStr = new char[strlen(topo[i]) - beginPos];
                     for (int k = 0; k < strlen(topo[i]) - beginPos; k++) {
                         numStr[k] = topo[i][k + beginPos];
@@ -61,14 +67,37 @@ void search_route(char *topo[5000], int edge_num, char *demand)
                     int num = atoi((const char *) numStr);
                     delete [] numStr;
 
-                    pathCosts[i] = num;
+                    cost = num;
 
                     break;
                 }
             }
         }
+
+        bool flag = true;
+        for (int j = 0; j < i; j++) {
+            if ((pathSrcs[j] == src) && (pathDests[j] == dest)) {
+                if (pathCosts[j] > cost) {
+                    pathIds[j] = id;
+                    pathCosts[j] = cost;
+                }
+
+                delPath++;
+
+                flag = false;
+
+                break;
+            }
+        }
+        if (flag) {
+            pathIds[i] = id;
+            pathSrcs[i] = src;
+            pathDests[i] = dest;
+            pathCosts[i] = cost;
+        }
     }
     n++; // The index of node starts at 0
+    edge_num -= delPath;
 
     // Handle information in demand
     int source;
