@@ -14,75 +14,61 @@
 #define MAXCOST 21
 
 //你要完成的功能总入口
-void search_route(char *topoData[5000], int edge_num, char *demandData)
+void search_route(char *topo[5000], int edge_num, char *demand)
 {
-    // Convert input topology
-    int * topoArr = new int[INFONUM * edge_num];
+    // Create topology information matrix, plus 1 for the fade route from destination to source
+    int * pathIds = new int[edge_num];
+    int * pathSrcs = new int[edge_num + 1];
+    int * pathDests = new int[edge_num + 1];
+    int * pathCosts = new int[edge_num + 1];
+
+    // Convert from topo
+    int n = 0; // Number of nodes
     for (int i = 0; i < edge_num; i++) {
-        // Find the positions of ','
-        int * commaPos = new int[MAXNUMLENGTH];
-        int commaPosCnt = 0;
-        for (int j = 0; j < strlen(topoData[i]); j++) {
-            if (topoData[i][j] == ',') {
-                commaPos[commaPosCnt] = j;
-                commaPosCnt++;
-            }
-        }
-        for (int j = 0; j < INFONUM; j++) {
-            int beginPos;
-            if (j == 0) {
-                beginPos = 0;
-            } else {
-                beginPos = commaPos[j - 1] + 1;
-            }
-            int endPos;
-            if (j == INFONUM - 1) {
-                endPos = strlen(topoData[i]);
-            } else {
-                endPos = commaPos[j];
-            }
-            char * info = new char[MAXNUMLENGTH];
-            int infoCnt = 0;
-            for (int k = beginPos; k < endPos; k++) {
-                info[infoCnt] = topoData[i][k];
+        int beginPos = 0;
+        int infoCnt = 0;
+        for (int j = 0; j < strlen(topo[i]); j++) {
+            if (topo[i][j] == ',') {
+                char * numStr = new char[j - beginPos];
+                for (int k = 0; k < j - beginPos; k++) {
+                    numStr[k] = topo[i][k + beginPos];
+                }
+                int num = atoi((const char *) numStr);
+                delete [] numStr;
+
+                switch (infoCnt) {
+                    case TOPOID:
+                        pathIds[i] = num;
+                        break;
+                    case TOPOSRC:
+                        pathSrcs[i] = num;
+                        if (num > n) n = num;
+                        break;
+                    case TOPODEST:
+                        pathDests[i] = num;
+                        if (num > n) n = num;
+                        break;
+                }
+
+                beginPos = j + 1;
                 infoCnt++;
+                if (infoCnt == INFONUM - 1) {
+                    // Write pathCosts
+                    char * numStr = new char[strlen(topo[i]) - beginPos];
+                    for (int k = 0; k < strlen(topo[i]) - beginPos; k++) {
+                        numStr[k] = topo[i][k + beginPos];
+                    }
+                    int num = atoi((const char *) numStr);
+                    delete [] numStr;
+
+                    pathCosts[i] = num;
+
+                    break;
+                }
             }
-            topoArr[i * INFONUM + j] = atoi((const char *) info);
-            delete [] info;
-        }
-        delete [] commaPos;
-    }
-
-    // Find the number of nodes
-    int n = 0; // The index of node starts at 0
-    for (int i = 0; i < edge_num; i++) {
-        int src = topoArr[i * INFONUM + TOPOSRC];
-        int dest = topoArr[i * INFONUM + TOPODEST];
-
-        if (src > n) n = src;
-        if (dest > n) n = dest;
-    }
-    n++;
-
-    // Create matrices
-    int * topo = new int[n * n];
-    int * pathIds = new int[n * n];
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            topo[j * n + i] = MAXCOST;
-            pathIds[j * n + i] = 0;
         }
     }
-    for (int i = 0; i < edge_num; i++) {
-        int id = topoArr[i * INFONUM + TOPOID];
-        int src = topoArr[i * INFONUM + TOPOSRC];
-        int dest = topoArr[i * INFONUM + TOPODEST];
-        int cost = topoArr[i * INFONUM + TOPOCOST];
-
-        topo[dest * n + src] = cost;
-        pathIds[dest * n + src] = id;
-    }
-    delete [] topoArr;
+    n++; // The index of node starts at 0
 
     // Handle information in demand
     int source;
@@ -90,99 +76,69 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
     int * coreNodes = new int[n]; // Nodes in the includsing set plus source and destination
     int coreNodesCnt = 2;
 
-    // Find the positions of ','
-    int * commaPos = new int[COMMANUM];
-    int commaPosCnt = 0;
-    for (int i = 0; i < strlen(demandData); i++) {
-        if (demandData[i] == ',') {
-            commaPos[commaPosCnt] = i;
-            commaPosCnt++;
-            if (commaPosCnt == COMMANUM) {
-                break;
+    int beginPos = 0;
+    int commaCnt = 0;
+    for (int i = 0; i < strlen(demand); i++) {
+        if (commaCnt < COMMANUM) {
+            if (demand[i] == ',') {
+                char * numStr = new char[i - beginPos];
+                for (int j = 0; j < i - beginPos; j++) {
+                    numStr[j] = demand[j + beginPos];
+                }
+                int num = atoi((const char *) numStr);
+                delete [] numStr;
+
+                switch (commaCnt) {
+                    case 0:
+                        source = num;
+                        break;
+                    case 1:
+                        destination = num;
+                }
+
+                beginPos = i + 1;
+                commaCnt++;
+            }
+        } else {
+            if (demand[i] == '|') {
+                char * numStr = new char[i - beginPos];
+                for (int j = 0; j < i - beginPos; j++) {
+                    numStr[j] = demand[j + beginPos];
+                }
+                int num = atoi((const char *) numStr);
+                delete [] numStr;
+
+                coreNodes[coreNodesCnt] = num;
+                coreNodesCnt++;
+
+                beginPos = i + 1;
             }
         }
     }
-
-    // Find the positions of '|'
-    int * tubePos = new int[n - 3]; // Minus source and destination plus 1
-    int tubePosCnt = 0; // This value plus one is the number of nodes in the including set
-    for (int i = commaPos[COMMANUM - 1] + 1; i < strlen(demandData); i++) {
-        if (demandData[i] == '|') {
-            tubePos[tubePosCnt] = i;
-            tubePosCnt++;
-        }
+    // Write last core node
+    char * numStr = new char[strlen(demand) - beginPos];
+    for (int i = 0; i < strlen(demand) - beginPos; i++) {
+        numStr[i] = demand[i + beginPos];
     }
+    int num = atoi((const char *) numStr);
+    delete [] numStr;
 
-    // Get the source
-    char * srcStr = new char[MAXNUMLENGTH];
-    int srcStrCnt = 0;
-    for (int i = 0; i < commaPos[0]; i++) {
-        srcStr[srcStrCnt] = demandData[i];
-        srcStrCnt++;
-    }
-    source = atoi(srcStr);
-    delete [] srcStr;
+    coreNodes[coreNodesCnt] = num;
+    coreNodesCnt++;
 
-    // Get the destination
-    char * destStr = new char[MAXNUMLENGTH];
-    int destStrCnt = 0;
-    for (int i = commaPos[0] + 1; i < commaPos[1]; i++) {
-        destStr[destStrCnt] = demandData[i];
-        destStrCnt++;
-    }
-    destination = atoi(destStr);
-    delete [] destStr;
-
-    // Get the including set and core nodes
+    // Write source and destination
     coreNodes[0] = source;
     coreNodes[1] = destination;
-    if (tubePosCnt == 0) {
-        // Only one node in the including set
-        char * nodeStr = new char[MAXNUMLENGTH];
-        int nodeStrCnt = 0;
-        for (int i = commaPos[COMMANUM - 1] + 1; i < strlen(demandData); i++) {
-            nodeStr[nodeStrCnt] = demandData[i];
-            nodeStrCnt++;
-        }
-        coreNodes[coreNodesCnt] = atoi(nodeStr);
-        coreNodesCnt++;
-        delete [] nodeStr;
-    } else {
-        for (int i = 0; i < tubePosCnt + 1; i++) {
-            int beginPos;
-            if (i == 0) {
-                beginPos = commaPos[COMMANUM - 1] + 1;
-            } else {
-                beginPos = tubePos[i - 1] + 1;
-            }
-            int endPos;
-            if (i == tubePosCnt) {
-                endPos = strlen(demandData);
-            } else {
-                endPos = tubePos[i];
-            }
-            char * nodeStr = new char[MAXNUMLENGTH];
-            int nodeStrCnt = 0;
-            for (int j = beginPos; j < endPos; j++) {
-                nodeStr[nodeStrCnt] = demandData[j];
-                nodeStrCnt++;
-            }
-            coreNodes[coreNodesCnt] = atoi(nodeStr);
-            coreNodesCnt++;
-            delete [] nodeStr;
-        }
-    }
-    delete [] commaPos;
-    delete [] tubePos;
 
-    // Fade connection from destination to source
-    int fadeN = source * n + destination;
-    topo[fadeN] = 0;
+    // Fade connection from destination to source (with 0 cost)
+    pathSrcs[edge_num] = destination;
+    pathDests[edge_num] = source;
+    pathCosts[edge_num] = 0;
 
     // Create lp
 	lprec * lp;
 
-    int xcol = n * n; // x : n * n
+    int xcol = edge_num + 1; // x : edge_num + 1
 	int Ncol = xcol + n; // u : n
 	REAL * row;
 	int cnt;
@@ -193,11 +149,11 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
 
 	// Set objective
 	cnt = 0;
-	colno = new int[xcol];
-	row = new REAL[xcol];
-	for (int i = 0; i < xcol; i++) {
+	colno = new int[xcol - 1];
+	row = new REAL[xcol - 1];
+	for (int i = 0; i < xcol - 1; i++) {
         colno[cnt] = i + 1;
-        row[cnt++] = topo[i];
+        row[cnt++] = pathCosts[i];
 	}
     set_obj_fnex(lp, cnt, row, colno);
     delete [] colno;
@@ -214,31 +170,22 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
     }
 
 	// Estimate the number of constraints
-	resize_lp(lp, 2 * n * n + 5 * n + 2 * coreNodesCnt + 1, get_Ncolumns(lp));
+	resize_lp(lp, n * n + 5 * n + 2 * coreNodesCnt + 1, get_Ncolumns(lp));
 
 	set_add_rowmode(lp, TRUE);
-
-    // Set not connected path (n * n)
-    for (int i = 0; i < xcol; i++) {
-        if (topo[i] == MAXCOST) {
-            colno = new int(i + 1);
-            row = new REAL(1);
-            add_constraintex(lp, 1, row, colno, EQ, 0);
-            delete colno;
-            delete row;
-        }
-    }
 
     // Every nodes should have same number of input and output (n)
     for (int i = 0; i < n; i++) {
         cnt = 0;
         colno = new int[xcol];
         row = new REAL[xcol];
-        for (int j = 0; j < n; j++) {
-            if (i != j) {
-                colno[cnt] = j * n + i + 1;
+        for (int j = 0; j < xcol; j++) {
+            if (pathSrcs[j] == i) {
+                colno[cnt] = j + 1;
                 row[cnt++] = 1;
-                colno[cnt] = i * n + j + 1;
+            }
+            if (pathDests[j] == i) {
+                colno[cnt] = j + 1;
                 row[cnt++] = -1;
             }
         }
@@ -247,56 +194,62 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
         delete [] row;
     }
 
-    // Pass every node no more than one time - row (n)
+    // Pass every node no more than one time (2 * n)
     for (int i = 0; i < n; i++) {
         cnt = 0;
         colno = new int[xcol];
         row = new REAL[xcol];
-        for (int j = 0; j < n; j++) {
-            colno[cnt] = j * n + i + 1;
-            row[cnt++] = 1;
+        for (int j = 0; j < xcol; j++) {
+            if (pathSrcs[j] == i) {
+                colno[cnt] = j + 1;
+                row[cnt++] = 1;
+            }
         }
         add_constraintex(lp, cnt, row, colno, LE, 1);
         delete [] colno;
         delete [] row;
     }
 
-    // Pass every node no more than one time - column (n)
     for (int i = 0; i < n; i++) {
         cnt = 0;
         colno = new int[xcol];
         row = new REAL[xcol];
-        for (int j = 0; j < n; j++) {
-            colno[cnt] = i * n + j + 1;
-            row[cnt++] = 1;
+        for (int j = 0; j < xcol; j++) {
+            if (pathDests[j] == i) {
+                colno[cnt] = j + 1;
+                row[cnt++] = 1;
+            }
         }
         add_constraintex(lp, cnt, row, colno, LE, 1);
         delete [] colno;
         delete [] row;
     }
 
-    // Must pass all core nodes - row (coreNodesCnt)
+    // Must pass all core nodes (2 * coreNodesCnt)
     for (int i = 0; i < coreNodesCnt; i++) {
         cnt = 0;
         colno = new int[xcol];
         row = new REAL[xcol];
-        for (int j =0; j < n; j++) {
-            colno[cnt] = j * n + coreNodes[i] + 1;
-            row[cnt++] = 1;
+        for (int j =0; j < xcol; j++) {
+            if (pathSrcs[j] == coreNodes[i]) {
+                colno[cnt] = j + 1;
+                row[cnt++] = 1;
+            }
         }
         add_constraintex(lp, cnt, row, colno, EQ, 1);
         delete [] colno;
         delete [] row;
     }
 
-    // Must pass all core nodes - column (coreNodesCnt)
     for (int i = 0; i < coreNodesCnt; i++) {
         cnt = 0;
         colno = new int[xcol];
         row = new REAL[xcol];
-        for (int j =0; j < n; j++) {
-            colno[cnt] = coreNodes[i] * n + j + 1;
-            row[cnt++] = 1;
+        for (int j =0; j < xcol; j++) {
+            if (pathDests[j] == coreNodes[i]) {
+                colno[cnt] = j + 1;
+                row[cnt++] = 1;
+            }
         }
         add_constraintex(lp, cnt, row, colno, EQ, 1);
         delete [] colno;
@@ -310,15 +263,32 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
                 cnt = 0;
                 colno = new int[Ncol];
                 row = new REAL[Ncol];
+                // +u_i
                 colno[cnt] = xcol + i + 1;
                 row[cnt++] = 1;
+                // -u_j
                 colno[cnt] = xcol + j + 1;
                 row[cnt++] = -1;
-                colno[cnt] = j * n + i + 1;
-                row[cnt++] = n;
-                add_constraintex(lp, cnt, row, colno, LE, n - 1);
-                delete [] colno;
-                delete [] row;
+                // Check if there is path between i and j
+                bool flag = false;
+                for (int k = 0; k < xcol; k++) {
+                    if ((pathSrcs[k] == i) && (pathDests[k] == j)) {
+                        colno[cnt] = k + 1;
+                        row[cnt++] = n;
+                        add_constraintex(lp, cnt, row, colno, LE, n - 1);
+                        delete [] colno;
+                        delete [] row;
+
+                        flag = true;
+
+                        break;
+                    }
+                }
+                if (flag == false) {
+                    add_constraintex(lp, cnt, row, colno, LE, n - 1);
+                    delete [] colno;
+                    delete [] row;
+                }
             }
         }
     }
@@ -332,11 +302,13 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
         colno[cnt] = xcol + i + 1;
         row[cnt++] = 1;
         // Set x
-        for (int j = 0; j < n; j++) {
-            if (i != j) {
-                colno[cnt] = j * n + i + 1;
+        for (int j = 0; j < xcol; j++) {
+            if (pathSrcs[j] == i) {
+                colno[cnt] = j + 1;
                 row[cnt++] = -1;
-                colno[cnt] = i * n + j + 1;
+            }
+            if (pathDests[j] == i) {
+                colno[cnt] = j + 1;
                 row[cnt++] = -1;
             }
         }
@@ -354,11 +326,13 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
         colno[cnt] = xcol + i + 1;
         row[cnt++] = -1;
         // Set x
-        for (int j = 0; j < n; j++) {
-            if (i != j) {
-                colno[cnt] = j * n + i + 1;
+        for (int j = 0; j < xcol; j++) {
+            if (pathSrcs[j] == i) {
+                colno[cnt] = j + 1;
                 row[cnt++] = n;
-                colno[cnt] = i * n + j + 1;
+            }
+            if (pathDests[j] == i) {
+                colno[cnt] = j + 1;
                 row[cnt++] = n;
             }
         }
@@ -398,7 +372,11 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
         }
 
         for (int i = 0; i < pathCnt - 1; i++) {
-            record_result(pathIds[path[i + 1] * n + path[i]]);
+            for (int j = 0; j < xcol; j++) {
+                if ((pathSrcs[j] == path[i]) && (pathDests[j] == path[i + 1])) {
+                    record_result(pathIds[j]);
+                }
+            }
         }
         delete [] path;
         delete [] row;
@@ -408,7 +386,9 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
     delete_lp(lp);
 
 	// Delete memory
-	delete [] topo;
 	delete [] pathIds;
+	delete [] pathSrcs;
+	delete [] pathDests;
+	delete [] pathCosts;
 	delete [] coreNodes;
 }
