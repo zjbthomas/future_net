@@ -179,6 +179,7 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
     int fadeN = source * n + destination;
     topo[fadeN] = 0;
 
+    // Create lp
 	lprec * lp;
 
     int xcol = n * n; // x : n * n
@@ -192,8 +193,8 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
 
 	// Set objective
 	cnt = 0;
-	colno = new int[Ncol];
-	row = new REAL[Ncol];
+	colno = new int[xcol];
+	row = new REAL[xcol];
 	for (int i = 0; i < xcol; i++) {
         colno[cnt] = i + 1;
         row[cnt++] = topo[i];
@@ -212,37 +213,27 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
         set_int(lp, i + 1, TRUE);
     }
 
+	// Estimate the number of constraints
+	resize_lp(lp, 2 * n * n + 5 * n + 2 * coreNodesCnt + 1, get_Ncolumns(lp));
+
 	set_add_rowmode(lp, TRUE);
 
-	// Connect source and destination
-	cnt = 0;
-	colno = new int[Ncol];
-	row = new REAL[Ncol];
-	colno[cnt] = fadeN + 1;
-	row[cnt++] = 1;
-	add_constraintex(lp, cnt, row, colno, EQ, 1);
-	delete [] colno;
-	delete [] row;
-
-    // Cost control
+    // Set not connected path (n * n)
     for (int i = 0; i < xcol; i++) {
-        if (i != fadeN) {
-            cnt = 0;
-            colno = new int[Ncol];
-            row = new REAL[Ncol];
-            colno[cnt] = i + 1;
-            row[cnt++] = topo[i];
-            add_constraintex(lp, cnt, row, colno, LE, MAXCOST - 1);
-            delete [] colno;
-            delete [] row;
+        if (topo[i] == MAXCOST) {
+            colno = new int(i + 1);
+            row = new REAL(1);
+            add_constraintex(lp, 1, row, colno, EQ, 0);
+            delete colno;
+            delete row;
         }
     }
 
-    // Nodes control
+    // Every nodes should have same number of input and output (n)
     for (int i = 0; i < n; i++) {
         cnt = 0;
-        colno = new int[Ncol];
-        row = new REAL[Ncol];
+        colno = new int[xcol];
+        row = new REAL[xcol];
         for (int j = 0; j < n; j++) {
             if (i != j) {
                 colno[cnt] = j * n + i + 1;
@@ -256,11 +247,11 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
         delete [] row;
     }
 
-    // Pass every node no more than one time
+    // Pass every node no more than one time - row (n)
     for (int i = 0; i < n; i++) {
         cnt = 0;
-        colno = new int[Ncol];
-        row = new REAL[Ncol];
+        colno = new int[xcol];
+        row = new REAL[xcol];
         for (int j = 0; j < n; j++) {
             colno[cnt] = j * n + i + 1;
             row[cnt++] = 1;
@@ -269,10 +260,12 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
         delete [] colno;
         delete [] row;
     }
+
+    // Pass every node no more than one time - column (n)
     for (int i = 0; i < n; i++) {
         cnt = 0;
-        colno = new int[Ncol];
-        row = new REAL[Ncol];
+        colno = new int[xcol];
+        row = new REAL[xcol];
         for (int j = 0; j < n; j++) {
             colno[cnt] = i * n + j + 1;
             row[cnt++] = 1;
@@ -282,11 +275,11 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
         delete [] row;
     }
 
-    // Must pass all core nodes
+    // Must pass all core nodes - row (coreNodesCnt)
     for (int i = 0; i < coreNodesCnt; i++) {
         cnt = 0;
-        colno = new int[Ncol];
-        row = new REAL[Ncol];
+        colno = new int[xcol];
+        row = new REAL[xcol];
         for (int j =0; j < n; j++) {
             colno[cnt] = j * n + coreNodes[i] + 1;
             row[cnt++] = 1;
@@ -295,10 +288,12 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
         delete [] colno;
         delete [] row;
     }
+
+    // Must pass all core nodes - column (coreNodesCnt)
     for (int i = 0; i < coreNodesCnt; i++) {
         cnt = 0;
-        colno = new int[Ncol];
-        row = new REAL[Ncol];
+        colno = new int[xcol];
+        row = new REAL[xcol];
         for (int j =0; j < n; j++) {
             colno[cnt] = coreNodes[i] * n + j + 1;
             row[cnt++] = 1;
@@ -308,7 +303,7 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
         delete [] row;
     }
 
-    // Get rid of loop
+    // Get rid of loop - TSP constraints (n * n)
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
             if ((i != j) && (j != source)) {
@@ -327,6 +322,8 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
             }
         }
     }
+
+    // Get rid of loop - lower bound of u (n)
     for (int i = 0; i < n; i++) {
         cnt = 0;
         colno = new int[Ncol];
@@ -347,6 +344,8 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
         delete [] colno;
         delete [] row;
     }
+
+    // Get rid of loop - Upper bound of u (n)
     for (int i = 0; i < n; i++) {
         cnt = 0;
         colno = new int[Ncol];
@@ -381,34 +380,35 @@ void search_route(char *topoData[5000], int edge_num, char *demandData)
         row = new REAL[Ncol];
         get_variables(lp, row);
 
-        int maxU = 0;
-        for (int i = xcol; i < Ncol; i++) {
-            if (row[i] > maxU) {
-                maxU = row[i];
-            }
-        }
-
-        int * path = new int[maxU];
+        int * path = new int[n];
+        int pathCnt = 0;
 
         int now = 1;
-        while (now <= maxU) {
+        bool flag = true;
+        while (flag) {
+            flag = false;
             for (int i = xcol; i < Ncol; i++) {
                 if (row[i] == now) {
-                    path[now - 1] = i - xcol;
+                    path[pathCnt] = i - xcol;
+                    pathCnt++;
                     now++;
+                    flag = true;
                 }
             }
         }
 
-        for (int i = 0; i < maxU - 1; i++) {
+        for (int i = 0; i < pathCnt - 1; i++) {
             record_result(pathIds[path[i + 1] * n + path[i]]);
         }
+        delete [] path;
         delete [] row;
     }
+
+    // Delete lp
+    delete_lp(lp);
 
 	// Delete memory
 	delete [] topo;
 	delete [] pathIds;
 	delete [] coreNodes;
-	delete_lp(lp);
 }

@@ -37,10 +37,10 @@ void record_result(unsigned short edge)
 }
 
 void print_time(const char *head)
-{ 
-    struct timeb rawtime; 
-    struct tm * timeinfo; 
-    ftime(&rawtime); 
+{
+    struct timeb rawtime;
+    struct tm * timeinfo;
+    ftime(&rawtime);
     timeinfo = localtime(&rawtime.time);
 
     static int ms = rawtime.millitm;
@@ -55,7 +55,7 @@ void print_time(const char *head)
         out_ms += 1000;
         out_s -= 1;
     }
-    printf("%s date/time is: %s \tused time is %lu s %d ms.\n", head, asctime(timeinfo), out_s, out_ms); 
+    //printf("%s date/time is: %s \tused time is %lu s %d ms.\n", head, asctime(timeinfo), out_s, out_ms);
 }
 
 int read_file(char ** const buff, const unsigned int spec, const char * const filename)
@@ -63,10 +63,10 @@ int read_file(char ** const buff, const unsigned int spec, const char * const fi
     FILE *fp = fopen(filename, "r");
     if (fp == NULL)
     {
-        PRINT("Fail to open file %s, %s.\n", filename, strerror(errno));
+        //PRINT("Fail to open file %s, %s.\n", filename, strerror(errno));
         return 0;
     }
-    PRINT("Open file %s OK.\n", filename);
+    //PRINT("Open file %s OK.\n", filename);
 
     char line[MAX_LINE_LEN + 2];
     unsigned int cnt = 0;
@@ -81,7 +81,7 @@ int read_file(char ** const buff, const unsigned int spec, const char * const fi
         cnt++;
     }
     fclose(fp);
-    PRINT("There are %d lines in file %s.\n", cnt, filename);
+    //PRINT("There are %d lines in file %s.\n", cnt, filename);
 
     return cnt;
 }
@@ -109,10 +109,10 @@ INLINE void write_file(const bool cover, const char * const buff, const char * c
     FILE *fp = fopen(filename, write_type);
     if (fp == NULL)
     {
-        PRINT("Fail to open file %s, %s.\n", filename, strerror(errno));
+        //PRINT("Fail to open file %s, %s.\n", filename, strerror(errno));
         return;
     }
-    PRINT("Open file %s OK.\n", filename);
+    //PRINT("Open file %s OK.\n", filename);
     fputs(buff, fp);
     fputs("\n", fp);
     fclose(fp);
