@@ -260,31 +260,32 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
             if ((i != j) && (j != source)) {
-                cnt = 0;
-                colno = new int[Ncol];
-                row = new REAL[Ncol];
-                // +u_i
-                colno[cnt] = xcol + i + 1;
-                row[cnt++] = 1;
-                // -u_j
-                colno[cnt] = xcol + j + 1;
-                row[cnt++] = -1;
                 // Check if there is path between i and j
                 bool flag = false;
+                int xij;
                 for (int k = 0; k < xcol; k++) {
                     if ((pathSrcs[k] == i) && (pathDests[k] == j)) {
-                        colno[cnt] = k + 1;
-                        row[cnt++] = n;
-                        add_constraintex(lp, cnt, row, colno, LE, n - 1);
-                        delete [] colno;
-                        delete [] row;
+                        xij = k;
 
                         flag = true;
 
                         break;
                     }
                 }
-                if (flag == false) {
+
+                if (flag) {
+                    cnt = 0;
+                    colno = new int[Ncol];
+                    row = new REAL[Ncol];
+                    // +u_i
+                    colno[cnt] = xcol + i + 1;
+                    row[cnt++] = 1;
+                    // -u_j
+                    colno[cnt] = xcol + j + 1;
+                    row[cnt++] = -1;
+                    // +n * x_ij
+                    colno[cnt] = xij + 1;
+                    row[cnt++] = n;
                     add_constraintex(lp, cnt, row, colno, LE, n - 1);
                     delete [] colno;
                     delete [] row;
