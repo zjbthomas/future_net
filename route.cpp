@@ -4,18 +4,47 @@
 
 #include "lp_lib.h"
 
-#define MAXNUMLENGTH 4
 #define INFONUM 4
 #define COMMANUM 2
 #define TOPOID 0
 #define TOPOSRC 1
 #define TOPODEST 2
 #define TOPOCOST 3
-#define MAXCOST 21
 
 //你要完成的功能总入口
 void search_route(char *topo[5000], int edge_num, char *demand)
 {
+    // Find source and destination
+    int source;
+    int destination;
+
+    int beginPos = 0;
+    int commaCnt = 0;
+    for (int i = 0; i < strlen(demand); i++) {
+        if (demand[i] == ',') {
+            char * numStr = new char[i - beginPos];
+            for (int j = 0; j < i - beginPos; j++) {
+                numStr[j] = demand[j + beginPos];
+            }
+            int num = atoi((const char *) numStr);
+            delete [] numStr;
+
+            switch (commaCnt) {
+                case 0:
+                    source = num;
+                    break;
+                case 1:
+                    destination = num;
+            }
+
+            beginPos = i + 1;
+            commaCnt++;
+        }
+        if (commaCnt == COMMANUM) {
+            break;
+        }
+    }
+
     // Create topology information matrix, plus 1 for the fade route from destination to source
     int * pathIds = new int[edge_num];
     int * pathSrcs = new int[edge_num + 1];
@@ -74,6 +103,16 @@ void search_route(char *topo[5000], int edge_num, char *demand)
             }
         }
 
+        if (dest == source) {
+            delPath++;
+            continue;
+        }
+
+        if (src == destination) {
+            delPath++;
+            continue;
+        }
+
         bool flag = true;
         for (int j = 0; j < i; j++) {
             if ((pathSrcs[j] == src) && (pathDests[j] == dest)) {
@@ -99,52 +138,33 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     n++; // The index of node starts at 0
     edge_num -= delPath;
 
-    // Handle information in demand
-    int source;
-    int destination;
+    // Fade connection from destination to source (with 0 cost)
+    pathSrcs[edge_num] = destination;
+    pathDests[edge_num] = source;
+    pathCosts[edge_num] = 0;
+
+    // Find nodes in the includsing set plus source and destination
     int * coreNodes = new int[n]; // Nodes in the includsing set plus source and destination
+    coreNodes[0] = source;
+    coreNodes[1] = destination;
     int coreNodesCnt = 2;
 
-    int beginPos = 0;
-    int commaCnt = 0;
-    for (int i = 0; i < strlen(demand); i++) {
-        if (commaCnt < COMMANUM) {
-            if (demand[i] == ',') {
-                char * numStr = new char[i - beginPos];
-                for (int j = 0; j < i - beginPos; j++) {
-                    numStr[j] = demand[j + beginPos];
-                }
-                int num = atoi((const char *) numStr);
-                delete [] numStr;
-
-                switch (commaCnt) {
-                    case 0:
-                        source = num;
-                        break;
-                    case 1:
-                        destination = num;
-                }
-
-                beginPos = i + 1;
-                commaCnt++;
+    for (int i = beginPos; i < strlen(demand); i++) {
+        if (demand[i] == '|') {
+            char * numStr = new char[i - beginPos];
+            for (int j = 0; j < i - beginPos; j++) {
+                numStr[j] = demand[j + beginPos];
             }
-        } else {
-            if (demand[i] == '|') {
-                char * numStr = new char[i - beginPos];
-                for (int j = 0; j < i - beginPos; j++) {
-                    numStr[j] = demand[j + beginPos];
-                }
-                int num = atoi((const char *) numStr);
-                delete [] numStr;
+            int num = atoi((const char *) numStr);
+            delete [] numStr;
 
-                coreNodes[coreNodesCnt] = num;
-                coreNodesCnt++;
+            coreNodes[coreNodesCnt] = num;
+            coreNodesCnt++;
 
-                beginPos = i + 1;
-            }
+            beginPos = i + 1;
         }
     }
-    // Write last core node
+    // Get last core node
     char * numStr = new char[strlen(demand) - beginPos];
     for (int i = 0; i < strlen(demand) - beginPos; i++) {
         numStr[i] = demand[i + beginPos];
@@ -154,15 +174,6 @@ void search_route(char *topo[5000], int edge_num, char *demand)
 
     coreNodes[coreNodesCnt] = num;
     coreNodesCnt++;
-
-    // Write source and destination
-    coreNodes[0] = source;
-    coreNodes[1] = destination;
-
-    // Fade connection from destination to source (with 0 cost)
-    pathSrcs[edge_num] = destination;
-    pathDests[edge_num] = source;
-    pathCosts[edge_num] = 0;
 
     // Create lp
 	lprec * lp;
@@ -387,7 +398,7 @@ void search_route(char *topo[5000], int edge_num, char *demand)
         int * path = new int[n];
         int pathCnt = 0;
 
-        int now = 1;
+        int now = row[xcol + source];
         bool flag = true;
         while (flag) {
             flag = false;
@@ -408,6 +419,14 @@ void search_route(char *topo[5000], int edge_num, char *demand)
                 }
             }
         }
+        if (path[pathCnt] != destination) {
+            for (int i = 0; i < xcol; i++) {
+                if ((pathSrcs[i] == path[pathCnt]) && (pathDests[i] == destination)) {
+                    record_result(pathIds[i]);
+                }
+            }
+        }
+
         delete [] path;
         delete [] row;
     }
