@@ -187,7 +187,6 @@ void search_route(char *topo[5000], int edge_num, char *demand)
 
 	lp = make_lp(0, Ncol);
 
-
 	// Set objective
 	cnt = 0;
 	colno = new int[xcol - 1];
@@ -400,23 +399,23 @@ void search_route(char *topo[5000], int edge_num, char *demand)
         int pathCnt = 0;
 
         int now = row[xcol + source];
-        bool flag = true;
-        while (flag) {
-            flag = false;
+        for (int i = 0; i < n; i++) {
             for (int i = xcol; i < Ncol; i++) {
                 if (row[i] == now) {
                     path[pathCnt] = i - xcol;
                     pathCnt++;
-                    now++;
-                    flag = true;
+                    break;
                 }
             }
+            now++;
         }
 
-        for (int i = 0; i < pathCnt - 1; i++) {
-            for (int j = 0; j < xcol; j++) {
-                if ((pathSrcs[j] == path[i]) && (pathDests[j] == path[i + 1])) {
-                    record_result(pathIds[j]);
+        if (path[pathCnt - 1] == destination) {
+            for (int i = 0; i < pathCnt - 1; i++) {
+                for (int j = 0; j < xcol; j++) {
+                    if ((pathSrcs[j] == path[i]) && (pathDests[j] == path[i + 1])) {
+                        record_result(pathIds[j]);
+                    }
                 }
             }
         }
