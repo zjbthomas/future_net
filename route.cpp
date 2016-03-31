@@ -129,10 +129,10 @@ void search_route(char *topo[5000], int edge_num, char *demand)
             }
         }
         if (flag) {
-            pathIds[i] = id;
-            pathSrcs[i] = src;
-            pathDests[i] = dest;
-            pathCosts[i] = cost;
+            pathIds[i - delPath] = id;
+            pathSrcs[i - delPath] = src;
+            pathDests[i - delPath] = dest;
+            pathCosts[i - delPath] = cost;
         }
     }
     n++; // The index of node starts at 0
@@ -142,6 +142,7 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     pathSrcs[edge_num] = destination;
     pathDests[edge_num] = source;
     pathCosts[edge_num] = 0;
+    edge_num++;
 
     // Find nodes in the includsing set plus source and destination
     int * coreNodes = new int[n]; // Nodes in the includsing set plus source and destination
@@ -178,7 +179,7 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     // Create lp
 	lprec * lp;
 
-    int xcol = edge_num + 1; // x : edge_num + 1
+    int xcol = edge_num; // x : edge_num
 	int Ncol = xcol + n; // u : n
 	REAL * row;
 	int cnt;
@@ -416,13 +417,6 @@ void search_route(char *topo[5000], int edge_num, char *demand)
             for (int j = 0; j < xcol; j++) {
                 if ((pathSrcs[j] == path[i]) && (pathDests[j] == path[i + 1])) {
                     record_result(pathIds[j]);
-                }
-            }
-        }
-        if (path[pathCnt] != destination) {
-            for (int i = 0; i < xcol; i++) {
-                if ((pathSrcs[i] == path[pathCnt]) && (pathDests[i] == destination)) {
-                    record_result(pathIds[i]);
                 }
             }
         }

@@ -42,7 +42,7 @@ for i = 1: size(pathId, 1)
         if (topo(j, 1) == pathId(i))
             nextPathSrc = topo(j, 2);
             if (nextPathSrc ~= lastPathDest)
-                error('Wrong path.');
+                error(['Wrong path at path id ', pathId(i)]);
             else
                 cost = cost + topo(j, 4);
                 lastPathDest = topo(j, 3);
@@ -54,7 +54,7 @@ for i = 1: size(pathId, 1)
         if (lastPathDest == dest)
             disp(cost);
         else
-            error('Wrong path.');
+            error('Last node wrong.');
         end
     end
 end
