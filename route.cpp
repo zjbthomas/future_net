@@ -210,7 +210,7 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     }
 
 	// Estimate the number of constraints
-	resize_lp(lp, n * n + 5 * n + 2 * coreNodesCnt + 1, get_Ncolumns(lp));
+	resize_lp(lp, 5 * n + xcol - 1, get_Ncolumns(lp));
 
 	set_add_rowmode(lp, TRUE);
 
@@ -219,119 +219,83 @@ void search_route(char *topo[5000], int edge_num, char *demand)
         cnt = 0;
         colno = new int[xcol];
         row = new REAL[xcol];
+
+        bool flag = false;
         for (int j = 0; j < xcol; j++) {
             if (pathSrcs[j] == i) {
                 colno[cnt] = j + 1;
                 row[cnt++] = 1;
+                flag = true;
             }
             if (pathDests[j] == i) {
                 colno[cnt] = j + 1;
                 row[cnt++] = -1;
+                flag = true;
             }
         }
-        add_constraintex(lp, cnt, row, colno, EQ, 0);
+
+        if (flag) {
+            add_constraintex(lp, cnt, row, colno, EQ, 0);
+        }
+
         delete [] colno;
         delete [] row;
     }
 
-    // Pass every node no more than one time (2 * n)
+    // Pass every node no more than one time, for core nores, must pass (2 * n)
     for (int i = 0; i < n; i++) {
         cnt = 0;
         colno = new int[xcol];
         row = new REAL[xcol];
+
+        bool flag = false;
         for (int j = 0; j < xcol; j++) {
             if (pathSrcs[j] == i) {
                 colno[cnt] = j + 1;
                 row[cnt++] = 1;
+                flag = true;
             }
-        }
-        add_constraintex(lp, cnt, row, colno, LE, 1);
-        delete [] colno;
-        delete [] row;
-    }
-
-    for (int i = 0; i < n; i++) {
-        cnt = 0;
-        colno = new int[xcol];
-        row = new REAL[xcol];
-        for (int j = 0; j < xcol; j++) {
             if (pathDests[j] == i) {
                 colno[cnt] = j + 1;
                 row[cnt++] = 1;
+                flag = true;
             }
         }
-        add_constraintex(lp, cnt, row, colno, LE, 1);
-        delete [] colno;
-        delete [] row;
-    }
 
-    // Must pass all core nodes (2 * coreNodesCnt)
-    for (int i = 0; i < coreNodesCnt; i++) {
-        cnt = 0;
-        colno = new int[xcol];
-        row = new REAL[xcol];
-        for (int j =0; j < xcol; j++) {
-            if (pathSrcs[j] == coreNodes[i]) {
-                colno[cnt] = j + 1;
-                row[cnt++] = 1;
-            }
-        }
-        add_constraintex(lp, cnt, row, colno, EQ, 1);
-        delete [] colno;
-        delete [] row;
-    }
-
-    for (int i = 0; i < coreNodesCnt; i++) {
-        cnt = 0;
-        colno = new int[xcol];
-        row = new REAL[xcol];
-        for (int j =0; j < xcol; j++) {
-            if (pathDests[j] == coreNodes[i]) {
-                colno[cnt] = j + 1;
-                row[cnt++] = 1;
-            }
-        }
-        add_constraintex(lp, cnt, row, colno, EQ, 1);
-        delete [] colno;
-        delete [] row;
-    }
-
-    // Get rid of loop - TSP constraints (n * n)
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            if ((i != j) && (j != source)) {
-                // Check if there is path between i and j
-                bool flag = false;
-                int xij;
-                for (int k = 0; k < xcol; k++) {
-                    if ((pathSrcs[k] == i) && (pathDests[k] == j)) {
-                        xij = k;
-
-                        flag = true;
-
-                        break;
-                    }
+        if (flag) {
+            for (int j = 0; j < coreNodesCnt; j++) {
+                if (coreNodes[j] == i) {
+                    add_constraintex(lp, cnt, row, colno, EQ, 2);
+                    break;
                 }
-
-                if (flag) {
-                    cnt = 0;
-                    colno = new int[Ncol];
-                    row = new REAL[Ncol];
-                    // +u_i
-                    colno[cnt] = xcol + i + 1;
-                    row[cnt++] = 1;
-                    // -u_j
-                    colno[cnt] = xcol + j + 1;
-                    row[cnt++] = -1;
-                    // +n * x_ij
-                    colno[cnt] = xij + 1;
-                    row[cnt++] = n;
-                    add_constraintex(lp, cnt, row, colno, LE, n - 1);
-                    delete [] colno;
-                    delete [] row;
+                if (j == coreNodesCnt - 1) {
+                    add_constraintex(lp, cnt, row, colno, LE, 2);
                 }
             }
         }
+
+        delete [] colno;
+        delete [] row;
+    }
+
+    // Get rid of loop - TSP constraints (xcol - 1)
+    for (int i = 0; i < xcol - 1; i++) {
+        cnt = 0;
+        colno = new int[Ncol];
+        row = new REAL[Ncol];
+        // +u_i
+        colno[cnt] = xcol + pathSrcs[i] + 1;
+        row[cnt++] = 1;
+        // -u_j
+        colno[cnt] = xcol + pathDests[i] + 1;
+        row[cnt++] = -1;
+        // +n * x_ij
+        colno[cnt] = i + 1;
+        row[cnt++] = n;
+
+        add_constraintex(lp, cnt, row, colno, LE, n - 1);
+        delete [] colno;
+        delete [] row;
     }
 
     // Get rid of loop - lower bound of u (n)
@@ -390,8 +354,12 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     // Decrease report
     set_verbose(lp, NEUTRAL);
 
+    // Set timeout
+    set_timeout(lp, 10 - edge_num / 1000);
+
     // Solve
-    if (solve(lp) == 0) {
+    int ret = solve(lp);
+    if ((ret == OPTIMAL) || (ret == SUBOPTIMAL)) {
         row = new REAL[Ncol];
         get_variables(lp, row);
 

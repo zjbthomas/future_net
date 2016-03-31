@@ -8,7 +8,7 @@ topoPath = 'D:\Users\Thomas Zhang\Desktop\Data\GIT\future_net\test-case\checkCas
 demandPath = 'D:\Users\Thomas Zhang\Desktop\Data\GIT\future_net\test-case\checkCases\demand.csv';
 resultPath = 'D:\Users\Thomas Zhang\Desktop\Data\GIT\future_net\test-case\checkCases\result.csv';
 % Call subroutine
-[valid, message] = checkResult(topoPath, demandPath, resultPath);
+[valid, message] = checkResult(topoPath, demandPath, resultPath, true);
 if (valid)
     disp(['Given case', message]);
 else

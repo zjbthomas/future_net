@@ -1,4 +1,4 @@
-function [valid, message] = checkResult(topoPath, demandPath, resultPath)
+function [valid, message] = checkResult(topoPath, demandPath, resultPath, display)
     %% Initialize output
     valid = false;
     message = [];
@@ -43,12 +43,18 @@ function [valid, message] = checkResult(topoPath, demandPath, resultPath)
                     return;
                 else
                     cost = cost + topo(j, 4);
+                    if (display)
+                        disp(lastPathDest);
+                    end
                     lastPathDest = topo(j, 3);
                     break;
                 end
             end
         end
         if (i == size(pathId, 1))
+            if (display)
+                disp(lastPathDest);
+            end
             if (lastPathDest == dest)
                 valid = true;
                 message = [' correct with cost ', num2str(cost)];

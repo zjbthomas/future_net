@@ -13,7 +13,7 @@ for l = 3: length(list)
         demandPath = [baseDir, list(l).name, '\demand.csv'];
         resultPath = [baseDir, list(l).name, '\result.csv'];
         % Call subroutine
-        [valid, message] = checkResult(topoPath, demandPath, resultPath);
+        [valid, message] = checkResult(topoPath, demandPath, resultPath, false);
         if (valid)
             disp([list(l).name, message]);
         else
