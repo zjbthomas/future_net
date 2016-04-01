@@ -2,7 +2,7 @@ Debug/
 test-case/
 
 *.depend
-*.cdp
+*.cbp
 *.layout
 
 *.asv

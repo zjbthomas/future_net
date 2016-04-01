@@ -77,11 +77,9 @@ void search_route(char *topo[5000], int edge_num, char *demand)
                         break;
                     case TOPOSRC:
                         src = num;
-                        if (num > n) n = num;
                         break;
                     case TOPODEST:
                         dest = num;
-                        if (num > n) n = num;
                         break;
                 }
 
@@ -133,6 +131,9 @@ void search_route(char *topo[5000], int edge_num, char *demand)
             pathSrcs[i - delPath] = src;
             pathDests[i - delPath] = dest;
             pathCosts[i - delPath] = cost;
+
+            if (src > n) n = src;
+            if (dest > n) n = dest;
         }
     }
     n++; // The index of node starts at 0
@@ -181,23 +182,19 @@ void search_route(char *topo[5000], int edge_num, char *demand)
 
     int xcol = edge_num; // x : edge_num
 	int Ncol = xcol + n; // u : n
-	REAL * row;
+	REAL * row = new REAL[Ncol];
 	int cnt;
-	int * colno;
+	int * colno = new int[Ncol];
 
 	lp = make_lp(0, Ncol);
 
 	// Set objective
 	cnt = 0;
-	colno = new int[xcol - 1];
-	row = new REAL[xcol - 1];
 	for (int i = 0; i < xcol - 1; i++) {
         colno[cnt] = i + 1;
         row[cnt++] = pathCosts[i];
 	}
     set_obj_fnex(lp, cnt, row, colno);
-    delete [] colno;
-    delete [] row;
 
     // Set x to be binary
     for (int i = 0; i < xcol; i++) {
@@ -210,15 +207,13 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     }
 
 	// Estimate the number of constraints
-	resize_lp(lp, 5 * n + xcol - 1, get_Ncolumns(lp));
+	resize_lp(lp, 4 * n + xcol - 1, get_Ncolumns(lp));
 
 	set_add_rowmode(lp, TRUE);
 
     // Every nodes should have same number of input and output (n)
     for (int i = 0; i < n; i++) {
         cnt = 0;
-        colno = new int[xcol];
-        row = new REAL[xcol];
 
         bool flag = false;
         for (int j = 0; j < xcol; j++) {
@@ -237,16 +232,11 @@ void search_route(char *topo[5000], int edge_num, char *demand)
         if (flag) {
             add_constraintex(lp, cnt, row, colno, EQ, 0);
         }
-
-        delete [] colno;
-        delete [] row;
     }
 
-    // Pass every node no more than one time, for core nores, must pass (2 * n)
+    // Pass every node no more than one time, for core nores, must pass (n)
     for (int i = 0; i < n; i++) {
         cnt = 0;
-        colno = new int[xcol];
-        row = new REAL[xcol];
 
         bool flag = false;
         for (int j = 0; j < xcol; j++) {
@@ -273,16 +263,11 @@ void search_route(char *topo[5000], int edge_num, char *demand)
                 }
             }
         }
-
-        delete [] colno;
-        delete [] row;
     }
 
     // Get rid of loop - TSP constraints (xcol - 1)
     for (int i = 0; i < xcol - 1; i++) {
         cnt = 0;
-        colno = new int[Ncol];
-        row = new REAL[Ncol];
         // +u_i
         colno[cnt] = xcol + pathSrcs[i] + 1;
         row[cnt++] = 1;
@@ -294,15 +279,11 @@ void search_route(char *topo[5000], int edge_num, char *demand)
         row[cnt++] = n;
 
         add_constraintex(lp, cnt, row, colno, LE, n - 1);
-        delete [] colno;
-        delete [] row;
     }
 
     // Get rid of loop - lower bound of u (n)
     for (int i = 0; i < n; i++) {
         cnt = 0;
-        colno = new int[Ncol];
-        row = new REAL[Ncol];
         // Set u
         colno[cnt] = xcol + i + 1;
         row[cnt++] = 1;
@@ -318,15 +299,11 @@ void search_route(char *topo[5000], int edge_num, char *demand)
             }
         }
         add_constraintex(lp, cnt, row, colno, GE, -1);
-        delete [] colno;
-        delete [] row;
     }
 
     // Get rid of loop - Upper bound of u (n)
     for (int i = 0; i < n; i++) {
         cnt = 0;
-        colno = new int[Ncol];
-        row = new REAL[Ncol];
         // Set u
         colno[cnt] = xcol + i + 1;
         row[cnt++] = -1;
@@ -342,8 +319,6 @@ void search_route(char *topo[5000], int edge_num, char *demand)
             }
         }
         add_constraintex(lp, cnt, row, colno, GE, 0);
-        delete [] colno;
-        delete [] row;
     }
 
     set_add_rowmode(lp, FALSE);
@@ -355,12 +330,11 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     set_verbose(lp, NEUTRAL);
 
     // Set timeout
-    set_timeout(lp, 10 - edge_num / 1000);
+    set_timeout(lp, 7);
 
     // Solve
     int ret = solve(lp);
     if ((ret == OPTIMAL) || (ret == SUBOPTIMAL)) {
-        row = new REAL[Ncol];
         get_variables(lp, row);
 
         int * path = new int[n];
@@ -389,11 +363,12 @@ void search_route(char *topo[5000], int edge_num, char *demand)
         }
 
         delete [] path;
-        delete [] row;
     }
 
     // Delete lp
     delete_lp(lp);
+    delete [] colno;
+    delete [] row;
 
 	// Delete memory
 	delete [] pathIds;
