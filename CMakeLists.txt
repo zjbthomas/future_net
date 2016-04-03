@@ -5,7 +5,6 @@ cmake_minimum_required(VERSION 2.8)
 project(future_net)
 
 # include路径
-include_directories(${PROJECT_SOURCE_DIR}/lib)
 
 # 设置可执行文件生成路径
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin)
@@ -21,6 +20,12 @@ aux_source_directory(. DIR_SRCS)
 
 # 指定生成目标 
 add_executable(future_net ${DIR_SRCS})
-
-# Link to static library
-target_link_libraries(future_net ${PROJECT_SOURCE_DIR}/liblpsolve55.a -ldl)
+target_link_libraries(future_net ${PROJECT_SOURCE_DIR}/lib/libCbc.a)
+target_link_libraries(future_net ${PROJECT_SOURCE_DIR}/lib/libCbcSolver.a)
+target_link_libraries(future_net ${PROJECT_SOURCE_DIR}/lib/libCgl.a)
+target_link_libraries(future_net ${PROJECT_SOURCE_DIR}/lib/libClp.a)
+target_link_libraries(future_net ${PROJECT_SOURCE_DIR}/lib/libClpSolver.a)
+target_link_libraries(future_net ${PROJECT_SOURCE_DIR}/lib/libCoinUtils.a)
+target_link_libraries(future_net ${PROJECT_SOURCE_DIR}/lib/libOsi.a)
+target_link_libraries(future_net ${PROJECT_SOURCE_DIR}/lib/libOsiCbc.a)
+target_link_libraries(future_net ${PROJECT_SOURCE_DIR}/lib/libOsiClp.a)

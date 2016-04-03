@@ -2,7 +2,8 @@
 #include "lib_record.h"
 #include <stdio.h>
 
-#include "lp_lib.h"
+#include "include/CbcModel.hpp"
+#include "include/OsiClpSolverInterface.hpp"
 
 #define INFONUM 4
 #define COMMANUM 2
@@ -10,10 +11,12 @@
 #define TOPOSRC 1
 #define TOPODEST 2
 #define TOPOCOST 3
+#define MAXROUNDS 300
 
 //你要完成的功能总入口
 void search_route(char *topo[5000], int edge_num, char *demand)
 {
+    /** Handle inputs */
     // Find source and destination
     int source;
     int destination;
@@ -177,200 +180,224 @@ void search_route(char *topo[5000], int edge_num, char *demand)
     coreNodes[coreNodesCnt] = num;
     coreNodesCnt++;
 
-    // Create lp
-	lprec * lp;
+    /** Create lp model */
+    int Ncol = edge_num;
+    double * elements = new double[Ncol];
+    int * columns = new int[Ncol];
+    int cnt;
 
-    int xcol = edge_num; // x : edge_num
-	int Ncol = xcol + n; // u : n
-	REAL * row = new REAL[Ncol];
-	int cnt;
-	int * colno = new int[Ncol];
+    OsiClpSolverInterface model;
+    model.loadProblem(Ncol, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
-	lp = make_lp(0, Ncol);
-
-	// Set objective
-	cnt = 0;
-	for (int i = 0; i < xcol - 1; i++) {
-        colno[cnt] = i + 1;
-        row[cnt++] = pathCosts[i];
-	}
-    set_obj_fnex(lp, cnt, row, colno);
+    // Set objective (default is minimization)
+    for (int i = 0; i < Ncol - 1; i++) {
+        model.setObjCoeff(i, (double) pathCosts[i]);
+    }
 
     // Set x to be binary
-    for (int i = 0; i < xcol; i++) {
-        set_binary(lp, i + 1, TRUE);
+    for (int i = 0; i < Ncol; i++) {
+        model.setInteger(i);
+        model.setColBounds(i, 0, 1);
     }
 
-    // Set u to be integer, no need to set u >= 0 since it is inherited in lpsolve
-    for (int i = xcol; i < Ncol; i++) {
-        set_int(lp, i + 1, TRUE);
-    }
+    /** Set assignment constraints */
 
-	// Estimate the number of constraints
-	resize_lp(lp, 4 * n + xcol - 1, get_Ncolumns(lp));
-
-	set_add_rowmode(lp, TRUE);
-
-    // Every nodes should have same number of input and output (n)
+    // Every nodes should have same number of input and output
     for (int i = 0; i < n; i++) {
         cnt = 0;
 
-        bool flag = false;
-        for (int j = 0; j < xcol; j++) {
+        for (int j = 0; j < Ncol; j++) {
             if (pathSrcs[j] == i) {
-                colno[cnt] = j + 1;
-                row[cnt++] = 1;
-                flag = true;
+                columns[cnt] = j;
+                elements[cnt++] = 1;
             }
             if (pathDests[j] == i) {
-                colno[cnt] = j + 1;
-                row[cnt++] = -1;
-                flag = true;
+                columns[cnt] = j;
+                elements[cnt++] = -1;
             }
         }
 
-        if (flag) {
-            add_constraintex(lp, cnt, row, colno, EQ, 0);
-        }
+        model.addRow(cnt, columns, elements, 0, 0);
     }
 
-    // Pass every node no more than one time, for core nores, must pass (n)
+    // Pass every node no more than one time, for core nodes, must pass
     for (int i = 0; i < n; i++) {
         cnt = 0;
 
-        bool flag = false;
-        for (int j = 0; j < xcol; j++) {
+        for (int j = 0; j < Ncol; j++) {
             if (pathSrcs[j] == i) {
-                colno[cnt] = j + 1;
-                row[cnt++] = 1;
-                flag = true;
+                columns[cnt] = j;
+                elements[cnt++] = 1;
             }
             if (pathDests[j] == i) {
-                colno[cnt] = j + 1;
-                row[cnt++] = 1;
-                flag = true;
+                columns[cnt] = j;
+                elements[cnt++] = 1;
             }
         }
 
-        if (flag) {
-            for (int j = 0; j < coreNodesCnt; j++) {
-                if (coreNodes[j] == i) {
-                    add_constraintex(lp, cnt, row, colno, EQ, 2);
-                    break;
-                }
-                if (j == coreNodesCnt - 1) {
-                    add_constraintex(lp, cnt, row, colno, LE, 2);
-                }
+        for (int j = 0; j < coreNodesCnt; j++) {
+            if (coreNodes[j] == i) {
+                model.addRow(cnt, columns, elements, 2, 2);
+                break;
+            }
+            if (j == coreNodesCnt - 1) {
+                model.addRow(cnt, columns, elements, 0, 2);
             }
         }
     }
 
-    // Get rid of loop - TSP constraints (xcol - 1)
-    for (int i = 0; i < xcol - 1; i++) {
-        cnt = 0;
-        // +u_i
-        colno[cnt] = xcol + pathSrcs[i] + 1;
-        row[cnt++] = 1;
-        // -u_j
-        colno[cnt] = xcol + pathDests[i] + 1;
-        row[cnt++] = -1;
-        // +n * x_ij
-        colno[cnt] = i + 1;
-        row[cnt++] = n;
+    /** Use subtour constraints */
+    for (int round = 0; round < MAXROUNDS; round++) {
+        // Solve LP of the current constraints
+        CbcModel solver(model);
+        solver.setLogLevel(0);
+        solver.branchAndBound();
+        bool optimal = solver.isProvenOptimal();
+        if (optimal) {
+            // Get results
+            const double * getResults = solver.getColSolution();
+            int * results = new int[Ncol];
 
-        add_constraintex(lp, cnt, row, colno, LE, n - 1);
-    }
+            // Calculate the number of subtours
+            int * subtours[n / 2];
+            int * subtoursNodesCnt = new int[n / 2];
+            int subtoursCnt = 0;
 
-    // Get rid of loop - lower bound of u (n)
-    for (int i = 0; i < n; i++) {
-        cnt = 0;
-        // Set u
-        colno[cnt] = xcol + i + 1;
-        row[cnt++] = 1;
-        // Set x
-        for (int j = 0; j < xcol; j++) {
-            if (pathSrcs[j] == i) {
-                colno[cnt] = j + 1;
-                row[cnt++] = -1;
-            }
-            if (pathDests[j] == i) {
-                colno[cnt] = j + 1;
-                row[cnt++] = -1;
-            }
-        }
-        add_constraintex(lp, cnt, row, colno, GE, -1);
-    }
-
-    // Get rid of loop - Upper bound of u (n)
-    for (int i = 0; i < n; i++) {
-        cnt = 0;
-        // Set u
-        colno[cnt] = xcol + i + 1;
-        row[cnt++] = -1;
-        // Set x
-        for (int j = 0; j < xcol; j++) {
-            if (pathSrcs[j] == i) {
-                colno[cnt] = j + 1;
-                row[cnt++] = n;
-            }
-            if (pathDests[j] == i) {
-                colno[cnt] = j + 1;
-                row[cnt++] = n;
-            }
-        }
-        add_constraintex(lp, cnt, row, colno, GE, 0);
-    }
-
-    set_add_rowmode(lp, FALSE);
-
-    // Set to minimize
-    set_minim(lp);
-
-    // Decrease report
-    set_verbose(lp, NEUTRAL);
-
-    // Set timeout
-    set_timeout(lp, 7);
-
-    // Solve
-    int ret = solve(lp);
-    if ((ret == OPTIMAL) || (ret == SUBOPTIMAL)) {
-        get_variables(lp, row);
-
-        int * path = new int[n];
-        int pathCnt = 0;
-
-        int now = row[xcol + source];
-        for (int i = 0; i < n; i++) {
-            for (int i = xcol; i < Ncol; i++) {
-                if (row[i] == now) {
-                    path[pathCnt] = i - xcol;
-                    pathCnt++;
-                    break;
+            int setPathCnt = 0;
+            for (int i = 0; i < Ncol; i++) {
+                results[i] = getResults[i];
+                if (results[i] == 1) {
+                    setPathCnt++;
                 }
             }
-            now++;
-        }
 
-        if (path[pathCnt - 1] == destination) {
-            for (int i = 0; i < pathCnt - 1; i++) {
-                for (int j = 0; j < xcol; j++) {
-                    if ((pathSrcs[j] == path[i]) && (pathDests[j] == path[i + 1])) {
-                        record_result(pathIds[j]);
+            while (setPathCnt > 0) {
+                // Create a new subtours
+                subtours[subtoursCnt] = new int[n];
+                int nodesCnt = 0;
+                // Find first point of the subtours
+                int now;
+                for (int i = 0; i < Ncol; i++) {
+                    if (results[i] == 1) {
+                        now = pathSrcs[i];
+                        subtours[subtoursCnt][nodesCnt] = now;
+                        nodesCnt++;
+                        break;
+                    }
+                }
+                // Find subtours nodes
+                bool flag = true;
+                while (flag) {
+                    flag = false;
+                    for (int i = 0; i < Ncol; i++) {
+                        if (results[i] == 1) {
+                            if (pathSrcs[i] == now) {
+                                // Path recorded
+                                results[i] = 0;
+                                setPathCnt--;
+
+                                now = pathDests[i];
+                                subtours[subtoursCnt][nodesCnt] = now;
+                                nodesCnt++;
+
+                                flag = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                // Move to next subtours
+                subtoursNodesCnt[subtoursCnt] = nodesCnt - 1;
+                subtoursCnt++;
+            }
+
+            delete [] results;
+
+            if (subtoursCnt == 1) {
+                // The result is optimal, so record result
+                int * path = new int [subtoursNodesCnt[0]];
+                for (int i = 0; i < subtoursNodesCnt[0]; i++) {
+                    if (subtours[0][i] == source) {
+                        for (int j = i; j < subtoursNodesCnt[0]; j++) {
+                            path[j - i] = subtours[0][j];
+                        }
+                        for (int j = 0; j < i; j++) {
+                            path[j + subtoursNodesCnt[0] - i] = subtours[0][j];
+                        }
+                        break;
+                    }
+                }
+
+                for (int i = 0; i < subtoursNodesCnt[0] - 1; i++) {
+                    for (int j = 0; j < Ncol; j++) {
+                        if ((pathSrcs[j] == path[i]) && (pathDests[j] == path[i + 1])) {
+                            //record_result(pathIds[j]);
+                            record_result(round);
+                        }
+                    }
+                }
+
+                delete [] path;
+
+                // Delete memory
+                delete [] columns;
+                delete [] elements;
+
+                delete [] pathIds;
+                delete [] pathSrcs;
+                delete [] pathDests;
+                delete [] pathCosts;
+                delete [] coreNodes;
+
+                return;
+            } else {
+                // Add subtour constraints
+                for (int i = 0; i < subtoursCnt; i++) {
+                    if (subtoursNodesCnt[i] <= n / 2) {
+                        cnt = 0;
+
+                        for (int j = 0; j < subtoursNodesCnt[i]; j++) {
+                            for (int k = 0; k < Ncol; k++) {
+                                if (pathSrcs[k] == subtours[i][j]) {
+                                    for (int l = 0; l < subtoursNodesCnt[i]; l++) {
+                                        if (pathDests[k] == subtours[i][l]) {
+                                            columns[cnt] = k;
+                                            elements[cnt++] = 1;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        model.addRow(cnt, columns, elements, 0, subtoursNodesCnt[i] - 1);
                     }
                 }
             }
-        }
 
-        delete [] path;
+            // Delete memory
+            for (int i = 0; i < subtoursCnt; i++) {
+                delete [] subtours[i];
+            }
+            delete [] subtoursNodesCnt;
+        } else {
+            // Delete memory
+            delete [] columns;
+            delete [] elements;
+
+            delete [] pathIds;
+            delete [] pathSrcs;
+            delete [] pathDests;
+            delete [] pathCosts;
+            delete [] coreNodes;
+
+            return;
+        }
     }
 
-    // Delete lp
-    delete_lp(lp);
-    delete [] colno;
-    delete [] row;
+    // Delete momory
+    delete [] columns;
+    delete [] elements;
 
-	// Delete memory
 	delete [] pathIds;
 	delete [] pathSrcs;
 	delete [] pathDests;

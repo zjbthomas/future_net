@@ -5,7 +5,7 @@
 
 int main(int argc, char *argv[])
 {
-    //print_time("Begin");
+    print_time("Begin");
     char *topo[5000];
     int edge_num;
     char *demand;
@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
     release_buff(topo, edge_num);
     release_buff(&demand, 1);
 
-    //print_time("End");
+    print_time("End");
 
 	return 0;
 }
