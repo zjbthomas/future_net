@@ -331,8 +331,7 @@ void search_route(char *topo[5000], int edge_num, char *demand)
                 for (int i = 0; i < subtoursNodesCnt[0] - 1; i++) {
                     for (int j = 0; j < Ncol; j++) {
                         if ((pathSrcs[j] == path[i]) && (pathDests[j] == path[i + 1])) {
-                            //record_result(pathIds[j]);
-                            record_result(round);
+                            record_result(pathIds[j]);
                         }
                     }
                 }
@@ -361,15 +360,17 @@ void search_route(char *topo[5000], int edge_num, char *demand)
                                 if (pathSrcs[k] == subtours[i][j]) {
                                     for (int l = 0; l < subtoursNodesCnt[i]; l++) {
                                         if (pathDests[k] == subtours[i][l]) {
+                                            break;
+                                        }
+                                        if (l == subtoursNodesCnt[i] - 1) {
                                             columns[cnt] = k;
                                             elements[cnt++] = 1;
-                                            break;
                                         }
                                     }
                                 }
                             }
                         }
-                        model.addRow(cnt, columns, elements, 0, subtoursNodesCnt[i] - 1);
+                        model.addRow(cnt, columns, elements, 1, Ncol);
                     }
                 }
             }
